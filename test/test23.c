@@ -40,3 +40,5 @@ int moo(char x)
 // 30 : foo
 // 31 : make_simple_alias
 // 33 : foo
+
+// 同06， 多了函数中的指向集赋值

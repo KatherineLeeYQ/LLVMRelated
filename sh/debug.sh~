@@ -1,3 +1,0 @@
-sudo make
-./sh/gen_bc.sh
-./bin/assignment ./outfiles/test00.bc 2> ./real_ssa/test00.txt
