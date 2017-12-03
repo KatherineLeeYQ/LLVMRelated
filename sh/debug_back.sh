@@ -8,8 +8,12 @@ echo "=== 02 ==="
 ./bin/assignment ./outfiles/test02.bc
 echo "=== 04 ==="
 ./bin/assignment ./outfiles/test04.bc
+echo "=== 06 ==="
+./bin/assignment ./outfiles/test06.bc
 echo "=== 07 ==="
 ./bin/assignment ./outfiles/test07.bc
+echo "=== 11 ==="
+./bin/assignment ./outfiles/test11.bc
 echo "=== 14 ==="
 ./bin/assignment ./outfiles/test14.bc
 echo "=== 15 ==="

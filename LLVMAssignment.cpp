@@ -85,8 +85,33 @@ public:
 
     // point & delete
     void pointToPointer(Pointer *ptr, Value *iV) {
+        assert(isa<Instruction>(iV));
+        Instruction *inst = dyn_cast<Instruction>(iV);
+
+        
+        errs() << "===========\n";
+        this->value->dump();
+        inst->dump();
+        
+        
+        set<Pointer *>::iterator it;
+        for (it = this->pointToSet.begin(); it != this->pointToSet.end(); ++it) {
+            Value *oldInstV = this->blockMap[*it];
+            assert(isa<Instruction>(oldInstV));
+            Instruction *oldInst = dyn_cast<Instruction>(oldInstV);
+
+            // only store inst erase
+            // if in the same basic block
+            if (isa<StoreInst>(inst) && inst->getParent() == oldInst->getParent()) {
+                this->pointToSet.erase(*it);
+                errs() << "erased!\n";
+            }
+        }
         this->pointToSet.insert(ptr);
         this->blockMap.insert(pair<Pointer *, Value *>(ptr, iV));
+
+        this->output();
+        errs() << "+++++++++++\n";
     }
     void pointToPointSet(set<Pointer *> pSet, Value *iV) {
         set<Pointer *>::iterator it;
@@ -94,9 +119,12 @@ public:
             this->pointToPointer(*it, iV);
         }
     }
-    void copyPointToSet(Pointer *ptr) {
+    void copyPointToSet(Pointer *ptr, Value *iV) {
         set<Pointer *> ptrSet = ptr->getPointerSet();
-        this->pointToPointSet(ptrSet, this->value);
+        if (ptrSet.size() != 0)
+            this->pointToPointSet(ptrSet, iV);
+        else
+            this->pointToPointer(ptr, iV);
     }
     void deletePointedPointer(Pointer *ptr) {
         this->pointToSet.erase(ptr);
@@ -164,9 +192,22 @@ class StructPropertyManager {
         assert(isa<GetElementPtrInst>(getInst));
         return dyn_cast<GetElementPtrInst>(getInst)->getPointerOperand();
     }
-    int getOffset(Value *getInst) {
-        assert(isa<GetElementPtrInst>(getInst));
-        return dyn_cast<GetElementPtrInst>(getInst)->getNumIndices();
+    int getOffset(Value *inst) {
+        assert(isa<GetElementPtrInst>(inst));
+        GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(inst);
+        //getInst->dump();
+
+        int count = 0;
+        for (Use *u = getInst->idx_begin(); u != getInst->idx_end(); ++u) {
+            ++count;
+
+            if (count == 2 && isa<ConstantInt>(u->get())) {
+                ConstantInt *c = dyn_cast<ConstantInt>(u->get());
+                return c->getLimitedValue();
+            }
+        }
+
+        return 0;
     }
     bool isStructExist(Value *value) {
         return this->structMap.find(value) != this->structMap.end();
@@ -387,6 +428,10 @@ struct FuncPtrPass : public ModulePass {
                     if (isa<StoreInst>(&I)) {
                         this->dealStoreInst(&I);
                     }
+                    // Load Instruction
+                    if (isa<LoadInst>(&I)) {
+                        this->dealLoadInst(&I);
+                    }
                 }
             }
         }
@@ -421,8 +466,22 @@ struct FuncPtrPass : public ModulePass {
         else if (isa<BitCastInst>(des)) {
             Pointer *desPtr = this->manager.getPointerFromValue(des);
             Pointer *sourcePtr = this->manager.getPointerFromValue(source);
-            desPtr->pointToPointer(sourcePtr, v);
+            desPtr->copyPointToSet(sourcePtr, v);
         }
+    }
+    void dealLoadInst(Value *v) {
+        assert(isa<LoadInst>(v));
+        Value *value = dyn_cast<LoadInst>(v)->getPointerOperand();
+
+        /*
+        errs() << "===Load\n";
+        value->dump();
+        v->dump();
+        */
+
+        Pointer *loadInstPtr = this->manager.getPointerFromValue(v);
+        Pointer *operandPtr = this->manager.getPointerFromValue(value);
+        loadInstPtr->copyPointToSet(operandPtr, v);
     }
     void dealCallInst(Value *v) {
         CallInst *callInst = dyn_cast<CallInst>(v);
@@ -449,22 +508,14 @@ struct FuncPtrPass : public ModulePass {
             this->dealCallFunction(callInst, calledValue); 
         else if (isa<LoadInst>(calledValue))
             this->dealCallLoadInst(callInst, calledValue);
-        // a function pointer
+        // a function pointer, include phi and normal function ptr
         else if (isFunctionPointer(calledValue)) {
-            // a phi of function pointers
-            if (isa<PHINode>(calledValue))        
-                this->dealCallPHI(callInst, calledValue);
-            else
-                this->dealCallFunctionPointer(callInst, calledValue);
+            this->dealCallFunctionPointer(callInst, calledValue);
         }
     }
     void dealCallLoadInst(Value *call, Value *lInst) {
         assert(isa<LoadInst>(lInst));
         Value *value = dyn_cast<LoadInst>(lInst)->getPointerOperand();
-
-        Pointer *loadInstPtr = this->manager.getPointerFromValue(lInst);
-        Pointer *operandPtr = this->manager.getPointerFromValue(value);
-        loadInstPtr->pointToPointer(operandPtr, lInst);
 
         if (isa<GetElementPtrInst>(value)) {
             this->dealCallStructLoad(call, lInst);
@@ -478,19 +529,6 @@ struct FuncPtrPass : public ModulePass {
 
         Pointer *loadInstPrt = this->manager.getPointerFromValue(lInst);
         loadInstPrt->pointToPointSet(ptrSet, lInst);
-    }
-    void dealCallPHI(Value *call, Value *p) {
-        /*
-        PHINode *phi = dyn_cast<PHINode>(p);
-        Pointer *phiPtr = this->manager.getPointerFromValue(phi);
-
-        set<Pointer *> phiSet = phiPtr->getBasePointerSet();
-        set<Pointer *>::iterator it;
-        for (it = phiSet.begin(); it != phiSet.end(); ++it) {
-            this->dealCallFunction(call, (*it)->getValue());
-        }
-        */
-        this->dealCallFunctionPointer(call, p);
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
         Pointer *funcPtr = this->manager.getPointerFromValue(fptr);
@@ -515,7 +553,7 @@ struct FuncPtrPass : public ModulePass {
             // bind the callinst and the return value
             Pointer *callPtr = this->manager.getPointerFromValue(call);
             Pointer *retPtr = this->manager.getReturnByFunc(func);
-            callPtr->pointToPointer(retPtr, call);
+            callPtr->copyPointToSet(retPtr, call);
         }
     }
     // block means this bindation has a block constrain
@@ -542,9 +580,7 @@ struct FuncPtrPass : public ModulePass {
     void bindFuncPtrParam(Value *call, Argument *arg, Value *realV) {
         Pointer *argPtr = this->manager.getPointerFromValue(arg);
         Pointer *realVPtr = this->manager.getPointerFromValue(realV);
-        argPtr->pointToPointer(realVPtr, call);
-
-        set<Pointer *> s = argPtr->getBasePointerSet();
+        argPtr->copyPointToSet(realVPtr, call);
     }
     Value* getReturnValue(Value *func) {
         if (!isa<Function>(func))
@@ -573,7 +609,7 @@ struct FuncPtrPass : public ModulePass {
             // include the null
             // phi pointer to its values
             Pointer *ptr = this->manager.getPointerFromValue(u_ptr->get());
-            phiPtr->pointToPointer(ptr, phi);
+            phiPtr->copyPointToSet(ptr, phi);
 
             ++u_ptr;
         }
