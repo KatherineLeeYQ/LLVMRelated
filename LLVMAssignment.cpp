@@ -94,6 +94,10 @@ public:
             this->pointToPointer(*it, iV);
         }
     }
+    void copyPointToSet(Pointer *ptr) {
+        set<Pointer *> ptrSet = ptr->getPointerSet();
+        this->pointToPointSet(ptrSet, this->value);
+    }
     void deletePointedPointer(Pointer *ptr) {
         this->pointToSet.erase(ptr);
     }
@@ -102,13 +106,16 @@ public:
     Value* getValue() {
         return this->value;
     }
-    set<Pointer*> getBasePointer() {
+    set<Pointer *> getPointerSet() {
+        return this->pointToSet;
+    }
+    set<Pointer *> getBasePointerSet() {
         set<Pointer *> basePointers;
 
         if (pointToSet.size() != 0) {
             set<Pointer *>::iterator it;
             for (it = pointToSet.begin(); it != pointToSet.end(); ++it) {
-                set<Pointer *> source = (*it)->getBasePointer();
+                set<Pointer *> source = (*it)->getBasePointerSet();
                 this->setInsertSet(basePointers, source);
             }
         }
@@ -123,7 +130,7 @@ public:
 
     // !TODO delete
     void output() {
-        set<Pointer *> ptrSet = this->getBasePointer();
+        set<Pointer *> ptrSet = this->getBasePointerSet();
         set<Pointer *>::iterator it;
         for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
             errs() << (*it)->getValue()->getName() << " + ";
@@ -349,7 +356,7 @@ public:
         map<int, Pointer *>::iterator it;
         for (it = lineMap.begin(); it != lineMap.end(); ++it) {
             errs() << it->first << " : ";
-            set<Pointer *> ptrs = it->second->getBasePointer();
+            set<Pointer *> ptrs = it->second->getBasePointerSet();
             this->outputFuncNames(ptrs);
         }
     }
@@ -477,7 +484,7 @@ struct FuncPtrPass : public ModulePass {
         PHINode *phi = dyn_cast<PHINode>(p);
         Pointer *phiPtr = this->manager.getPointerFromValue(phi);
 
-        set<Pointer *> phiSet = phiPtr->getBasePointer();
+        set<Pointer *> phiSet = phiPtr->getBasePointerSet();
         set<Pointer *>::iterator it;
         for (it = phiSet.begin(); it != phiSet.end(); ++it) {
             this->dealCallFunction(call, (*it)->getValue());
@@ -487,7 +494,7 @@ struct FuncPtrPass : public ModulePass {
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
         Pointer *funcPtr = this->manager.getPointerFromValue(fptr);
-        set<Pointer *> pSet = funcPtr->getBasePointer();
+        set<Pointer *> pSet = funcPtr->getBasePointerSet();
         set<Pointer *>::iterator it;
         for (it = pSet.begin(); it != pSet.end(); ++it) {
             this->dealCallFunction(call, (*it)->getValue());
@@ -537,7 +544,7 @@ struct FuncPtrPass : public ModulePass {
         Pointer *realVPtr = this->manager.getPointerFromValue(realV);
         argPtr->pointToPointer(realVPtr, call);
 
-        set<Pointer *> s = argPtr->getBasePointer();
+        set<Pointer *> s = argPtr->getBasePointerSet();
     }
     Value* getReturnValue(Value *func) {
         if (!isa<Function>(func))
