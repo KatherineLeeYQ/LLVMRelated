@@ -1,0 +1,97 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !13 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !14, metadata !15), !dbg !16
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !17, metadata !15), !dbg !18
+  %add = add nsw i32 %a, %b, !dbg !19
+  ret i32 %add, !dbg !20
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !21 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !22, metadata !15), !dbg !23
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !24, metadata !15), !dbg !25
+  %sub = sub nsw i32 %a, %b, !dbg !26
+  ret i32 %sub, !dbg !27
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 (i32, i32)* @foo(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr, i32 (i32, i32)* %b_fptr) #0 !dbg !28 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !31, metadata !15), !dbg !32
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !33, metadata !15), !dbg !34
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %a_fptr, i64 0, metadata !35, metadata !15), !dbg !36
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %b_fptr, i64 0, metadata !37, metadata !15), !dbg !38
+  ret i32 (i32, i32)* %a_fptr, !dbg !39
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @clever(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr, i32 (i32, i32)** %b_fptr) #0 !dbg !40 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !43, metadata !15), !dbg !44
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !45, metadata !15), !dbg !46
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %a_fptr, i64 0, metadata !47, metadata !15), !dbg !48
+  call void @llvm.dbg.value(metadata i32 (i32, i32)** %b_fptr, i64 0, metadata !49, metadata !15), !dbg !50
+  %0 = load i32 (i32, i32)*, i32 (i32, i32)** %b_fptr, align 8, !dbg !51
+  %call = call i32 (i32, i32)* @foo(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr, i32 (i32, i32)* %0), !dbg !52
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %call, i64 0, metadata !53, metadata !15), !dbg !54
+  %call1 = call i32 %call(i32 %a, i32 %b), !dbg !55
+  ret i32 %call1, !dbg !56
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @moo(i8 signext %x, i32 %op1, i32 %op2) #0 !dbg !57 {
+entry:
+  call void @llvm.dbg.value(metadata i8 %x, i64 0, metadata !61, metadata !15), !dbg !62
+  call void @llvm.dbg.value(metadata i32 %op1, i64 0, metadata !63, metadata !15), !dbg !64
+  call void @llvm.dbg.value(metadata i32 %op2, i64 0, metadata !65, metadata !15), !dbg !66
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @plus, i64 0, metadata !67, metadata !15), !dbg !68
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @minus, i64 0, metadata !69, metadata !15), !dbg !70
+  %call = call noalias i8* @malloc(i64 8) #3, !dbg !71
+  %0 = bitcast i8* %call to i32 (i32, i32)**, !dbg !72
+  call void @llvm.dbg.value(metadata i32 (i32, i32)** %0, i64 0, metadata !73, metadata !15), !dbg !74
+  %conv = sext i8 %x to i32, !dbg !75
+  %cmp = icmp eq i32 %conv, 43, !dbg !77
+  br i1 %cmp, label %if.then, label %if.else, !dbg !78
+
+if.then:                                          ; preds = %entry
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %0, align 8, !dbg !79
+  br label %if.end6, !dbg !81
+
+if.else:                                          ; preds = %entry
+  %conv2 = sext i8 %x to i32, !dbg !82
+  %cmp3 = icmp eq i32 %conv2, 45, !dbg !84
+  br i1 %cmp3, label %if.then5, label %if.end, !dbg !85
+
+if.then5:                                         ; preds = %if.else
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %0, align 8, !dbg !86
+  br label %if.end, !dbg !88
+
+if.end:                                           ; preds = %if.then5, %if.else
+  br label %if.end6
+
+if.end6:                                          ; preds = %if.end, %if.then
+  %call7 = call i32 @clever(i32 %op1, i32 %op2, i32 (i32, i32)* @plus, i32 (i32, i32)** %0), !dbg !89
+  call void @llvm.dbg.value(metadata i32 %call7, i64 0, metadata !90, metadata !15), !dbg !92
+  ret i32 0, !dbg !93
+}
+
+
+; Function Attrs: nounwind
+declare noalias i8* @malloc(i64) #2
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

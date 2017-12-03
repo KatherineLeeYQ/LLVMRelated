@@ -1,0 +1,92 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !7 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !11, metadata !12), !dbg !13
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !14, metadata !12), !dbg !15
+  %add = add nsw i32 %a, %b, !dbg !16
+  ret i32 %add, !dbg !17
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !18 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !19, metadata !12), !dbg !20
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !21, metadata !12), !dbg !22
+  %sub = sub nsw i32 %a, %b, !dbg !23
+  ret i32 %sub, !dbg !24
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @clever(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr.coerce) #0 !dbg !25 {
+entry:
+  %a_fptr = alloca %struct.fptr, align 8
+  %coerce.dive = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0
+  store i32 (i32, i32)* %a_fptr.coerce, i32 (i32, i32)** %coerce.dive, align 8
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !32, metadata !12), !dbg !33
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !34, metadata !12), !dbg !35
+  call void @llvm.dbg.declare(metadata %struct.fptr* %a_fptr, metadata !36, metadata !12), !dbg !37
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0, !dbg !38
+  %0 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr, align 8, !dbg !38
+  %call = call i32 %0(i32 %a, i32 %b), !dbg !39
+  ret i32 %call, !dbg !40
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @moo(i8 signext %x, i32 %op1, i32 %op2) #0 !dbg !41 {
+entry:
+  %t_fptr = alloca %struct.fptr, align 8
+  call void @llvm.dbg.value(metadata i8 %x, i64 0, metadata !45, metadata !12), !dbg !46
+  call void @llvm.dbg.value(metadata i32 %op1, i64 0, metadata !47, metadata !12), !dbg !48
+  call void @llvm.dbg.value(metadata i32 %op2, i64 0, metadata !49, metadata !12), !dbg !50
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @plus, i64 0, metadata !51, metadata !12), !dbg !52
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @minus, i64 0, metadata !53, metadata !12), !dbg !54
+  call void @llvm.dbg.declare(metadata %struct.fptr* %t_fptr, metadata !55, metadata !12), !dbg !56
+  %0 = bitcast %struct.fptr* %t_fptr to i8*, !dbg !56
+  call void @llvm.memset.p0i8.i64(i8* %0, i8 0, i64 8, i32 8, i1 false), !dbg !56
+  %conv = sext i8 %x to i32, !dbg !57
+  %cmp = icmp eq i32 %conv, 43, !dbg !59
+  br i1 %cmp, label %if.then, label %if.else, !dbg !60
+
+if.then:                                          ; preds = %entry
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %t_fptr, i32 0, i32 0, !dbg !61
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr, align 8, !dbg !63
+  br label %if.end7, !dbg !64
+
+if.else:                                          ; preds = %entry
+  %conv2 = sext i8 %x to i32, !dbg !65
+  %cmp3 = icmp eq i32 %conv2, 45, !dbg !67
+  br i1 %cmp3, label %if.then5, label %if.end, !dbg !68
+
+if.then5:                                         ; preds = %if.else
+  %p_fptr6 = getelementptr inbounds %struct.fptr, %struct.fptr* %t_fptr, i32 0, i32 0, !dbg !69
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %p_fptr6, align 8, !dbg !71
+  br label %if.end, !dbg !72
+
+if.end:                                           ; preds = %if.then5, %if.else
+  br label %if.end7
+
+if.end7:                                          ; preds = %if.end, %if.then
+  %coerce.dive = getelementptr inbounds %struct.fptr, %struct.fptr* %t_fptr, i32 0, i32 0, !dbg !73
+  %1 = load i32 (i32, i32)*, i32 (i32, i32)** %coerce.dive, align 8, !dbg !73
+  %call = call i32 @clever(i32 %op1, i32 %op2, i32 (i32, i32)* %1), !dbg !73
+  call void @llvm.dbg.value(metadata i32 %call, i64 0, metadata !74, metadata !12), !dbg !76
+  ret i32 0, !dbg !77
+}
+
+
+; Function Attrs: argmemonly nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i32, i1) #2
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

@@ -1,0 +1,80 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !9 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !13, metadata !14), !dbg !15
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !16, metadata !14), !dbg !17
+  %add = add nsw i32 %a, %b, !dbg !18
+  ret i32 %add, !dbg !19
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !20 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !21, metadata !14), !dbg !22
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !23, metadata !14), !dbg !24
+  %sub = sub nsw i32 %a, %b, !dbg !25
+  ret i32 %sub, !dbg !26
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @clever(i32 %x) #0 !dbg !27 {
+entry:
+  %t_fptr = alloca [2 x i32 (i32, i32)*], align 16
+  call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !30, metadata !14), !dbg !31
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @plus, i64 0, metadata !32, metadata !14), !dbg !34
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @minus, i64 0, metadata !35, metadata !14), !dbg !36
+  call void @llvm.dbg.declare(metadata [2 x i32 (i32, i32)*]* %t_fptr, metadata !37, metadata !14), !dbg !41
+  %0 = bitcast [2 x i32 (i32, i32)*]* %t_fptr to i8*, !dbg !41
+  call void @llvm.memset.p0i8.i64(i8* %0, i8 0, i64 16, i32 16, i1 false), !dbg !41
+  call void @llvm.dbg.value(metadata i32 1, i64 0, metadata !42, metadata !14), !dbg !43
+  call void @llvm.dbg.value(metadata i32 2, i64 0, metadata !44, metadata !14), !dbg !45
+  %cmp = icmp eq i32 %x, 3, !dbg !46
+  br i1 %cmp, label %if.then, label %if.end, !dbg !48
+
+if.then:                                          ; preds = %entry
+  %arrayidx = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 0, !dbg !49
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %arrayidx, align 16, !dbg !51
+  br label %if.end, !dbg !52
+
+if.end:                                           ; preds = %if.then, %entry
+  %cmp1 = icmp eq i32 %x, 4, !dbg !53
+  br i1 %cmp1, label %if.then2, label %if.end4, !dbg !55
+
+if.then2:                                         ; preds = %if.end
+  %arrayidx3 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 0, !dbg !56
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %arrayidx3, align 16, !dbg !58
+  br label %if.end4, !dbg !59
+
+if.end4:                                          ; preds = %if.then2, %if.end
+  %arrayidx5 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 0, !dbg !60
+  %1 = load i32 (i32, i32)*, i32 (i32, i32)** %arrayidx5, align 16, !dbg !60
+  %cmp6 = icmp ne i32 (i32, i32)* %1, null, !dbg !62
+  br i1 %cmp6, label %if.then7, label %if.end9, !dbg !63
+
+if.then7:                                         ; preds = %if.end4
+  %arrayidx8 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 0, !dbg !64
+  %2 = load i32 (i32, i32)*, i32 (i32, i32)** %arrayidx8, align 16, !dbg !64
+  %call = call i32 %2(i32 1, i32 2), !dbg !64
+  call void @llvm.dbg.value(metadata i32 %call, i64 0, metadata !66, metadata !14), !dbg !68
+  br label %if.end9, !dbg !69
+
+if.end9:                                          ; preds = %if.then7, %if.end4
+  ret i32 0, !dbg !70
+}
+
+
+; Function Attrs: argmemonly nounwind
+declare void @llvm.memset.p0i8.i64(i8* nocapture writeonly, i8, i64, i32, i1) #2
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

@@ -1,0 +1,110 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !24 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !25, metadata !26), !dbg !27
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !28, metadata !26), !dbg !29
+  %add = add nsw i32 %a, %b, !dbg !30
+  ret i32 %add, !dbg !31
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !32 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !33, metadata !26), !dbg !34
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !35, metadata !26), !dbg !36
+  %sub = sub nsw i32 %a, %b, !dbg !37
+  ret i32 %sub, !dbg !38
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define void @make_alias(%struct.wfsptr* %a, %struct.fsptr* %b) #0 !dbg !39 {
+entry:
+  call void @llvm.dbg.value(metadata %struct.wfsptr* %a, i64 0, metadata !42, metadata !26), !dbg !43
+  call void @llvm.dbg.value(metadata %struct.fsptr* %b, i64 0, metadata !44, metadata !26), !dbg !45
+  %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %b, i32 0, i32 0, !dbg !46
+  %0 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !46
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %0, i32 0, i32 0, !dbg !47
+  %1 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr, align 8, !dbg !47
+  %wfptr = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %a, i32 0, i32 0, !dbg !48
+  %2 = load %struct.fsptr*, %struct.fsptr** %wfptr, align 8, !dbg !48
+  %sptr1 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %2, i32 0, i32 0, !dbg !49
+  %3 = load %struct.fptr*, %struct.fptr** %sptr1, align 8, !dbg !49
+  %p_fptr2 = getelementptr inbounds %struct.fptr, %struct.fptr* %3, i32 0, i32 0, !dbg !50
+  store i32 (i32, i32)* %1, i32 (i32, i32)** %p_fptr2, align 8, !dbg !51
+  ret void, !dbg !52
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define void @foo(i32 %x) #0 !dbg !53 {
+entry:
+  %a_fptr = alloca %struct.fptr, align 8
+  %b_fptr = alloca %struct.fptr, align 8
+  %s_fptr = alloca %struct.fsptr, align 8
+  %m_fptr = alloca %struct.fsptr, align 8
+  call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !56, metadata !26), !dbg !57
+  call void @llvm.dbg.declare(metadata %struct.fptr* %a_fptr, metadata !58, metadata !26), !dbg !59
+  call void @llvm.dbg.declare(metadata %struct.fptr* %b_fptr, metadata !60, metadata !26), !dbg !61
+  call void @llvm.dbg.declare(metadata %struct.fsptr* %s_fptr, metadata !62, metadata !26), !dbg !63
+  call void @llvm.dbg.declare(metadata %struct.fsptr* %m_fptr, metadata !64, metadata !26), !dbg !65
+  %call = call noalias i8* @malloc(i64 8) #3, !dbg !66
+  %0 = bitcast i8* %call to %struct.wfsptr*, !dbg !67
+  call void @llvm.dbg.value(metadata %struct.wfsptr* %0, i64 0, metadata !68, metadata !26), !dbg !69
+  %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %s_fptr, i32 0, i32 0, !dbg !70
+  store %struct.fptr* %a_fptr, %struct.fptr** %sptr, align 8, !dbg !71
+  %sptr1 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %m_fptr, i32 0, i32 0, !dbg !72
+  store %struct.fptr* %b_fptr, %struct.fptr** %sptr1, align 8, !dbg !73
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %b_fptr, i32 0, i32 0, !dbg !74
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %p_fptr, align 8, !dbg !75
+  %wfptr = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %0, i32 0, i32 0, !dbg !76
+  store %struct.fsptr* %s_fptr, %struct.fsptr** %wfptr, align 8, !dbg !77
+  %cmp = icmp sgt i32 %x, 1, !dbg !78
+  br i1 %cmp, label %if.then, label %if.else, !dbg !80
+
+if.then:                                          ; preds = %entry
+  %p_fptr2 = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0, !dbg !81
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr2, align 8, !dbg !83
+  %sptr3 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %s_fptr, i32 0, i32 0, !dbg !84
+  %1 = load %struct.fptr*, %struct.fptr** %sptr3, align 8, !dbg !84
+  %p_fptr4 = getelementptr inbounds %struct.fptr, %struct.fptr* %1, i32 0, i32 0, !dbg !85
+  %2 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr4, align 8, !dbg !85
+  %call5 = call i32 %2(i32 1, i32 %x), !dbg !86
+  call void @llvm.dbg.value(metadata i32 %call5, i64 0, metadata !56, metadata !26), !dbg !57
+  call void @make_alias(%struct.wfsptr* %0, %struct.fsptr* %m_fptr), !dbg !87
+  br label %if.end, !dbg !88
+
+if.else:                                          ; preds = %entry
+  %wfptr6 = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %0, i32 0, i32 0, !dbg !89
+  %3 = load %struct.fsptr*, %struct.fsptr** %wfptr6, align 8, !dbg !89
+  %sptr7 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %3, i32 0, i32 0, !dbg !91
+  %4 = load %struct.fptr*, %struct.fptr** %sptr7, align 8, !dbg !91
+  %p_fptr8 = getelementptr inbounds %struct.fptr, %struct.fptr* %4, i32 0, i32 0, !dbg !92
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %p_fptr8, align 8, !dbg !93
+  br label %if.end
+
+if.end:                                           ; preds = %if.else, %if.then
+  %x.addr.0 = phi i32 [ %call5, %if.then ], [ %x, %if.else ]
+  call void @llvm.dbg.value(metadata i32 %x.addr.0, i64 0, metadata !56, metadata !26), !dbg !57
+  %p_fptr9 = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0, !dbg !94
+  %5 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr9, align 8, !dbg !94
+  %call10 = call i32 %5(i32 1, i32 %x.addr.0), !dbg !95
+  call void @llvm.dbg.value(metadata i32 %call10, i64 0, metadata !56, metadata !26), !dbg !57
+  ret void, !dbg !96
+}
+
+
+; Function Attrs: nounwind
+declare noalias i8* @malloc(i64) #2
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

@@ -1,0 +1,111 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !7 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !11, metadata !12), !dbg !13
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !14, metadata !12), !dbg !15
+  %add = add nsw i32 %a, %b, !dbg !16
+  ret i32 %add, !dbg !17
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !18 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !19, metadata !12), !dbg !20
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !21, metadata !12), !dbg !22
+  %sub = sub nsw i32 %a, %b, !dbg !23
+  ret i32 %sub, !dbg !24
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define %struct.fptr* @foo(i32 %a, i32 %b, %struct.fsptr* %a_fptr, %struct.fsptr* %b_fptr) #0 !dbg !25 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !37, metadata !12), !dbg !38
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !39, metadata !12), !dbg !40
+  call void @llvm.dbg.value(metadata %struct.fsptr* %a_fptr, i64 0, metadata !41, metadata !12), !dbg !42
+  call void @llvm.dbg.value(metadata %struct.fsptr* %b_fptr, i64 0, metadata !43, metadata !12), !dbg !44
+  %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %a_fptr, i32 0, i32 0, !dbg !45
+  %0 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !45
+  ret %struct.fptr* %0, !dbg !46
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define %struct.fptr* @clever(i32 %a, i32 %b, %struct.fsptr* %a_fptr, %struct.fsptr* %b_fptr) #0 !dbg !47 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !48, metadata !12), !dbg !49
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !50, metadata !12), !dbg !51
+  call void @llvm.dbg.value(metadata %struct.fsptr* %a_fptr, i64 0, metadata !52, metadata !12), !dbg !53
+  call void @llvm.dbg.value(metadata %struct.fsptr* %b_fptr, i64 0, metadata !54, metadata !12), !dbg !55
+  %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %b_fptr, i32 0, i32 0, !dbg !56
+  %0 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !56
+  ret %struct.fptr* %0, !dbg !57
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @moo(i8 signext %x, i32 %op1, i32 %op2) #0 !dbg !58 {
+entry:
+  %a_fptr = alloca %struct.fptr, align 8
+  %s_fptr = alloca %struct.fptr, align 8
+  %m_fptr = alloca %struct.fsptr, align 8
+  %n_fptr = alloca %struct.fsptr, align 8
+  call void @llvm.dbg.value(metadata i8 %x, i64 0, metadata !62, metadata !12), !dbg !63
+  call void @llvm.dbg.value(metadata i32 %op1, i64 0, metadata !64, metadata !12), !dbg !65
+  call void @llvm.dbg.value(metadata i32 %op2, i64 0, metadata !66, metadata !12), !dbg !67
+  call void @llvm.dbg.declare(metadata %struct.fptr* %a_fptr, metadata !68, metadata !12), !dbg !69
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0, !dbg !70
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr, align 8, !dbg !71
+  call void @llvm.dbg.declare(metadata %struct.fptr* %s_fptr, metadata !72, metadata !12), !dbg !73
+  %p_fptr1 = getelementptr inbounds %struct.fptr, %struct.fptr* %s_fptr, i32 0, i32 0, !dbg !74
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %p_fptr1, align 8, !dbg !75
+  call void @llvm.dbg.declare(metadata %struct.fsptr* %m_fptr, metadata !76, metadata !12), !dbg !77
+  %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %m_fptr, i32 0, i32 0, !dbg !78
+  store %struct.fptr* %a_fptr, %struct.fptr** %sptr, align 8, !dbg !79
+  call void @llvm.dbg.declare(metadata %struct.fsptr* %n_fptr, metadata !80, metadata !12), !dbg !81
+  %sptr2 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %n_fptr, i32 0, i32 0, !dbg !82
+  store %struct.fptr* %s_fptr, %struct.fptr** %sptr2, align 8, !dbg !83
+  call void @llvm.dbg.value(metadata %struct.fptr* null, i64 0, metadata !84, metadata !12), !dbg !85
+  %conv = sext i8 %x to i32, !dbg !86
+  %cmp = icmp eq i32 %conv, 43, !dbg !88
+  br i1 %cmp, label %if.then, label %if.else, !dbg !89
+
+if.then:                                          ; preds = %entry
+  call void @llvm.dbg.value(metadata %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @foo, i64 0, metadata !90, metadata !12), !dbg !92
+  br label %if.end8, !dbg !93
+
+if.else:                                          ; preds = %entry
+  %conv4 = sext i8 %x to i32, !dbg !95
+  %cmp5 = icmp eq i32 %conv4, 45, !dbg !97
+  br i1 %cmp5, label %if.then7, label %if.end, !dbg !98
+
+if.then7:                                         ; preds = %if.else
+  call void @llvm.dbg.value(metadata %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @clever, i64 0, metadata !90, metadata !12), !dbg !92
+  br label %if.end, !dbg !99
+
+if.end:                                           ; preds = %if.then7, %if.else
+  call void @llvm.dbg.value(metadata %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @clever, i64 0, metadata !90, metadata !12), !dbg !92
+  br label %if.end8
+
+if.end8:                                          ; preds = %if.end, %if.then
+  %goo_ptr.1 = phi %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* [ @foo, %if.then ], [ @clever, %if.end ]
+  call void @llvm.dbg.value(metadata %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* %goo_ptr.1, i64 0, metadata !90, metadata !12), !dbg !92
+  %call = call %struct.fptr* %goo_ptr.1(i32 %op1, i32 %op2, %struct.fsptr* %m_fptr, %struct.fsptr* %n_fptr), !dbg !101
+  call void @llvm.dbg.value(metadata %struct.fptr* %call, i64 0, metadata !84, metadata !12), !dbg !85
+  %p_fptr9 = getelementptr inbounds %struct.fptr, %struct.fptr* %call, i32 0, i32 0, !dbg !102
+  %0 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr9, align 8, !dbg !102
+  %call10 = call i32 %0(i32 %op1, i32 %op2), !dbg !103
+  ret i32 0, !dbg !104
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

@@ -1,0 +1,118 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !7 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !11, metadata !12), !dbg !13
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !14, metadata !12), !dbg !15
+  %add = add nsw i32 %a, %b, !dbg !16
+  ret i32 %add, !dbg !17
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !18 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !19, metadata !12), !dbg !20
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !21, metadata !12), !dbg !22
+  %sub = sub nsw i32 %a, %b, !dbg !23
+  ret i32 %sub, !dbg !24
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 (i32, i32)* @foo(i32 %a, i32 %b, %struct.fptr* %c_fptr, %struct.fptr* %d_fptr) #0 !dbg !25 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !33, metadata !12), !dbg !34
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !35, metadata !12), !dbg !36
+  call void @llvm.dbg.value(metadata %struct.fptr* %c_fptr, i64 0, metadata !37, metadata !12), !dbg !38
+  call void @llvm.dbg.value(metadata %struct.fptr* %d_fptr, i64 0, metadata !39, metadata !12), !dbg !40
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %c_fptr, i32 0, i32 0, !dbg !41
+  %0 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr, align 8, !dbg !41
+  ret i32 (i32, i32)* %0, !dbg !42
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 (i32, i32)* @clever(i32 %a, i32 %b, %struct.fptr* %c_fptr, %struct.fptr* %d_fptr) #0 !dbg !43 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !44, metadata !12), !dbg !45
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !46, metadata !12), !dbg !47
+  call void @llvm.dbg.value(metadata %struct.fptr* %c_fptr, i64 0, metadata !48, metadata !12), !dbg !49
+  call void @llvm.dbg.value(metadata %struct.fptr* %d_fptr, i64 0, metadata !50, metadata !12), !dbg !51
+  %cmp = icmp sgt i32 %a, 0, !dbg !52
+  br i1 %cmp, label %land.lhs.true, label %if.end, !dbg !54
+
+land.lhs.true:                                    ; preds = %entry
+  %cmp1 = icmp slt i32 %b, 0, !dbg !55
+  br i1 %cmp1, label %if.then, label %if.end, !dbg !56
+
+if.then:                                          ; preds = %land.lhs.true
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %d_fptr, i32 0, i32 0, !dbg !57
+  %0 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr, align 8, !dbg !57
+  br label %return, !dbg !59
+
+if.end:                                           ; preds = %land.lhs.true, %entry
+  %p_fptr2 = getelementptr inbounds %struct.fptr, %struct.fptr* %c_fptr, i32 0, i32 0, !dbg !60
+  %1 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr2, align 8, !dbg !60
+  br label %return, !dbg !61
+
+return:                                           ; preds = %if.end, %if.then
+  %retval.0 = phi i32 (i32, i32)* [ %0, %if.then ], [ %1, %if.end ]
+  ret i32 (i32, i32)* %retval.0, !dbg !62
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @moo(i8 signext %x, i32 %op1, i32 %op2) #0 !dbg !63 {
+entry:
+  %a_fptr = alloca %struct.fptr, align 8
+  %s_fptr = alloca %struct.fptr, align 8
+  call void @llvm.dbg.value(metadata i8 %x, i64 0, metadata !67, metadata !12), !dbg !68
+  call void @llvm.dbg.value(metadata i32 %op1, i64 0, metadata !69, metadata !12), !dbg !70
+  call void @llvm.dbg.value(metadata i32 %op2, i64 0, metadata !71, metadata !12), !dbg !72
+  call void @llvm.dbg.declare(metadata %struct.fptr* %a_fptr, metadata !73, metadata !12), !dbg !74
+  %p_fptr = getelementptr inbounds %struct.fptr, %struct.fptr* %a_fptr, i32 0, i32 0, !dbg !75
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr, align 8, !dbg !76
+  call void @llvm.dbg.declare(metadata %struct.fptr* %s_fptr, metadata !77, metadata !12), !dbg !78
+  %p_fptr1 = getelementptr inbounds %struct.fptr, %struct.fptr* %s_fptr, i32 0, i32 0, !dbg !79
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %p_fptr1, align 8, !dbg !80
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* null, i64 0, metadata !81, metadata !12), !dbg !82
+  %conv = sext i8 %x to i32, !dbg !83
+  %cmp = icmp eq i32 %conv, 43, !dbg !85
+  br i1 %cmp, label %if.then, label %if.else, !dbg !86
+
+if.then:                                          ; preds = %entry
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, %struct.fptr*, %struct.fptr*)* @foo, i64 0, metadata !87, metadata !12), !dbg !89
+  br label %if.end7, !dbg !90
+
+if.else:                                          ; preds = %entry
+  %conv3 = sext i8 %x to i32, !dbg !92
+  %cmp4 = icmp eq i32 %conv3, 45, !dbg !94
+  br i1 %cmp4, label %if.then6, label %if.end, !dbg !95
+
+if.then6:                                         ; preds = %if.else
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, %struct.fptr*, %struct.fptr*)* @clever, i64 0, metadata !87, metadata !12), !dbg !89
+  br label %if.end, !dbg !96
+
+if.end:                                           ; preds = %if.then6, %if.else
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, %struct.fptr*, %struct.fptr*)* @clever, i64 0, metadata !87, metadata !12), !dbg !89
+  br label %if.end7
+
+if.end7:                                          ; preds = %if.end, %if.then
+  %goo_ptr.1 = phi i32 (i32, i32)* (i32, i32, %struct.fptr*, %struct.fptr*)* [ @foo, %if.then ], [ @clever, %if.end ]
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, %struct.fptr*, %struct.fptr*)* %goo_ptr.1, i64 0, metadata !87, metadata !12), !dbg !89
+  %call = call i32 (i32, i32)* %goo_ptr.1(i32 %op1, i32 %op2, %struct.fptr* %a_fptr, %struct.fptr* %s_fptr), !dbg !98
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %call, i64 0, metadata !81, metadata !12), !dbg !82
+  %call8 = call i32 %call(i32 %op1, i32 %op2), !dbg !99
+  ret i32 0, !dbg !100
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

@@ -1,0 +1,65 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !13 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !14, metadata !15), !dbg !16
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !17, metadata !15), !dbg !18
+  %add = add nsw i32 %a, %b, !dbg !19
+  ret i32 %add, !dbg !20
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !21 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !22, metadata !15), !dbg !23
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !24, metadata !15), !dbg !25
+  %sub = sub nsw i32 %a, %b, !dbg !26
+  ret i32 %sub, !dbg !27
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define void @foo(i32 %x) #0 !dbg !28 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !31, metadata !15), !dbg !32
+  %call = call noalias i8* @malloc(i64 8) #3, !dbg !33
+  %0 = bitcast i8* %call to i32 (i32, i32)**, !dbg !34
+  call void @llvm.dbg.value(metadata i32 (i32, i32)** %0, i64 0, metadata !35, metadata !15), !dbg !36
+  %cmp = icmp sgt i32 %x, 1, !dbg !37
+  br i1 %cmp, label %if.then, label %if.else, !dbg !39
+
+if.then:                                          ; preds = %entry
+  store i32 (i32, i32)* @plus, i32 (i32, i32)** %0, align 8, !dbg !40
+  %1 = load i32 (i32, i32)*, i32 (i32, i32)** %0, align 8, !dbg !42
+  %call1 = call i32 %1(i32 1, i32 %x), !dbg !43
+  call void @llvm.dbg.value(metadata i32 %call1, i64 0, metadata !31, metadata !15), !dbg !32
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %0, align 8, !dbg !44
+  br label %if.end, !dbg !45
+
+if.else:                                          ; preds = %entry
+  store i32 (i32, i32)* @minus, i32 (i32, i32)** %0, align 8, !dbg !46
+  br label %if.end
+
+if.end:                                           ; preds = %if.else, %if.then
+  %x.addr.0 = phi i32 [ %call1, %if.then ], [ %x, %if.else ]
+  call void @llvm.dbg.value(metadata i32 %x.addr.0, i64 0, metadata !31, metadata !15), !dbg !32
+  %2 = load i32 (i32, i32)*, i32 (i32, i32)** %0, align 8, !dbg !48
+  %call2 = call i32 %2(i32 1, i32 %x.addr.0), !dbg !49
+  call void @llvm.dbg.value(metadata i32 %call2, i64 0, metadata !31, metadata !15), !dbg !32
+  ret void, !dbg !50
+}
+
+
+; Function Attrs: nounwind
+declare noalias i8* @malloc(i64) #2
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

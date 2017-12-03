@@ -1,0 +1,84 @@
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @plus(i32 %a, i32 %b) #0 !dbg !7 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !11, metadata !12), !dbg !13
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !14, metadata !12), !dbg !15
+  %add = add nsw i32 %a, %b, !dbg !16
+  ret i32 %add, !dbg !17
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @minus(i32 %a, i32 %b) #0 !dbg !18 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !19, metadata !12), !dbg !20
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !21, metadata !12), !dbg !22
+  %sub = sub nsw i32 %a, %b, !dbg !23
+  ret i32 %sub, !dbg !24
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 (i32, i32)* @foo(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr, i32 (i32, i32)* %b_fptr) #0 !dbg !25 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !29, metadata !12), !dbg !30
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !31, metadata !12), !dbg !32
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %a_fptr, i64 0, metadata !33, metadata !12), !dbg !34
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %b_fptr, i64 0, metadata !35, metadata !12), !dbg !36
+  ret i32 (i32, i32)* %a_fptr, !dbg !37
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 (i32, i32)* @clever(i32 %a, i32 %b, i32 (i32, i32)* %a_fptr, i32 (i32, i32)* %b_fptr) #0 !dbg !38 {
+entry:
+  call void @llvm.dbg.value(metadata i32 %a, i64 0, metadata !39, metadata !12), !dbg !40
+  call void @llvm.dbg.value(metadata i32 %b, i64 0, metadata !41, metadata !12), !dbg !42
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %a_fptr, i64 0, metadata !43, metadata !12), !dbg !44
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %b_fptr, i64 0, metadata !45, metadata !12), !dbg !46
+  ret i32 (i32, i32)* %b_fptr, !dbg !47
+}
+
+
+; Function Attrs: noinline nounwind uwtable
+define i32 @moo(i8 signext %x, i32 %op1, i32 %op2) #0 !dbg !48 {
+entry:
+  call void @llvm.dbg.value(metadata i8 %x, i64 0, metadata !52, metadata !12), !dbg !53
+  call void @llvm.dbg.value(metadata i32 %op1, i64 0, metadata !54, metadata !12), !dbg !55
+  call void @llvm.dbg.value(metadata i32 %op2, i64 0, metadata !56, metadata !12), !dbg !57
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @plus, i64 0, metadata !58, metadata !12), !dbg !59
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* @minus, i64 0, metadata !60, metadata !12), !dbg !61
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, i32 (i32, i32)*, i32 (i32, i32)*)* @foo, i64 0, metadata !62, metadata !12), !dbg !64
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* null, i64 0, metadata !65, metadata !12), !dbg !66
+  %conv = sext i8 %x to i32, !dbg !67
+  %cmp = icmp eq i32 %conv, 43, !dbg !69
+  br i1 %cmp, label %if.then, label %if.else, !dbg !70
+
+if.then:                                          ; preds = %entry
+  %call = call i32 (i32, i32)* @foo(i32 %op1, i32 %op2, i32 (i32, i32)* @plus, i32 (i32, i32)* @minus), !dbg !71
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %call, i64 0, metadata !65, metadata !12), !dbg !66
+  br label %if.end, !dbg !73
+
+if.else:                                          ; preds = %entry
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* (i32, i32, i32 (i32, i32)*, i32 (i32, i32)*)* @clever, i64 0, metadata !62, metadata !12), !dbg !64
+  %call2 = call i32 (i32, i32)* @clever(i32 %op1, i32 %op2, i32 (i32, i32)* @minus, i32 (i32, i32)* @plus), !dbg !74
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %call2, i64 0, metadata !65, metadata !12), !dbg !66
+  br label %if.end
+
+if.end:                                           ; preds = %if.else, %if.then
+  %t_fptr.0 = phi i32 (i32, i32)* [ %call, %if.then ], [ %call2, %if.else ]
+  call void @llvm.dbg.value(metadata i32 (i32, i32)* %t_fptr.0, i64 0, metadata !65, metadata !12), !dbg !66
+  %call3 = call i32 %t_fptr.0(i32 %op1, i32 %op2), !dbg !76
+  ret i32 0, !dbg !77
+}
+
+
+; Function Attrs: nounwind readnone speculatable
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
+
+sh: 1: pause: not found

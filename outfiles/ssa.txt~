@@ -1,0 +1,89 @@
+Scanning dependencies of target assignment
+[ 50%] Building CXX object CMakeFiles/assignment.dir/LLVMAssignment.cpp.o
+[100%] Linking CXX executable bin/assignment
+[100%] Built target assignment
+
+Test00.c
+10 : plus
+
+Test01.c
+22 : plus
+
+Test02.c
+24 : minus, plus
+
+Test03.c
+27 : minus, plus
+
+Test04.c
+10 : minus, plus
+26 : foo
+33 : foo
+
+Test05.c
+33 : minus, plus
+
+Test06.c
+10 : minus, plus
+26 : clever
+
+Test07.c
+10 : minus, plus
+28 : clever
+30 : clever
+
+Test08.c
+10 : minus, plus
+26 : clever
+
+Test09.c
+10 : minus, plus
+14 : foo
+30 : clever
+
+Test10.c
+15 : minus, plus
+19 : foo
+35 : clever
+
+Test11.c
+15 : foo
+16 : plus
+32 : clever
+
+Test12.c
+15 : foo
+16 : minus, plus
+32 : clever
+
+Test13.c
+30 : clever, foo
+31 : minus, plus
+
+Test14.c
+24 : foo
+31 : clever, foo
+32 : plus
+
+Test15.c
+14 : minus, plus
+24 : foo
+27 : foo
+
+Test16.c
+9 : minus, plus
+10 : minus, plus
+
+Test17.c
+12 : plus
+14 : minus
+20 : clever
+25 : foo
+31 : moo
+
+Test18.c
+8 : clever
+
+Test19.c
+14 : plus
+27 : foo
