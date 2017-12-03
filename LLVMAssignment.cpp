@@ -86,6 +86,12 @@ public:
     void pointToPointer(Pointer *ptr) {
         pointToSet.insert(ptr);
     }
+    void pointToPointSet(set<Pointer *> pSet) {
+        set<Pointer *>::iterator it;
+        for (it = pSet.begin(); it != pSet.end(); ++it) {
+            this->pointToPointer(*it);
+        }
+    }
     void deletePointedPointer(Pointer *ptr) {
         this->pointToSet.erase(ptr);
     }
@@ -133,13 +139,14 @@ class StructPropertyManager {
     // struct value -> map
     // map: offset -> property value pointer
     map<Value *, map<int, set<Pointer *>>> structMap;
+    map<Pointer *, Value *> ptrMap;// property ptr -> store inst
 
     Value* getStruct(Value *getInst) {
         assert(isa<GetElementPtrInst>(getInst));
         return dyn_cast<GetElementPtrInst>(getInst)->getPointerOperand();
     }
     int getOffset(Value *getInst) {
-        assert(isa<LoadInst>(getInst));
+        assert(isa<GetElementPtrInst>(getInst));
         return 0;
     }
     bool isStructExist(Value *value) {
@@ -155,11 +162,73 @@ class StructPropertyManager {
             return pSet;
         }
     }
+    void generatePtrMap(Pointer *ptr, Value *value) {
+        this->ptrMap.insert(pair<Pointer *, Value *>(ptr, value));
+    }
+    void insertExistStructPointer(StoreInst *storeInst) {
+        // getelementptr
+        Value *getInst = storeInst->getPointerOperand();
+        Value *source = storeInst->getValueOperand();
+        Value *structV = this->getStruct(getInst);
+        int offset = this->getOffset(getInst);
+
+        // basic block of the new source
+        BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
+
+        // get the offset map and the property value set
+        set<Pointer *> originSet = structMap[structV][offset];
+        set<Pointer *> newSet;
+        set<Pointer *>::iterator it;
+        for (it = originSet.begin(); it != originSet.end(); ++it) {
+            Value *v = this->ptrMap[(*it)];
+            assert(isa<Instruction>(v));
+            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
+
+            // delete the old pointer in the same basic block
+            // delete the old pointer that has the same value // !TODO
+            if (b != block && (*it)->getValue() != source)
+                newSet.insert(*it);
+        }
+
+        // insert new value into property value set
+        Pointer *sourcePtr = new Pointer(source);
+        newSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // update the set
+        this->structMap[structV][offset] = newSet;
+    }
+    void insertNotExistStructPointer(StoreInst *storeInst) {
+        // getelementptr
+        Value *getInst = storeInst->getPointerOperand();
+        Value *source = storeInst->getValueOperand();
+        Value *structV = this->getStruct(getInst);
+        int offset = this->getOffset(getInst);
+
+        // construct a property value set
+        set<Pointer *> propertyValueSet;
+        Pointer *sourcePtr = new Pointer(source);
+        propertyValueSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // construct a offset map
+        map<int, set<Pointer *>> offsetMap;
+        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
+
+        // insert into structMap
+        this->structMap.insert(pair<Value *, map<int, set<Pointer *>>>(structV, offsetMap));
+    }
 public:
     /*
     %p_fptr5 = getelementptr inbounds %struct.fptr, %struct.fptr* %t_fptr, i32 0, i32 0, !dbg !60
     %2 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr5, align 8, !dbg !60
     %call = call i32 %2(i32 1, i32 2), !dbg !62
+    */
+    /*
+    第一个0是数组计算符，并不会改变返回的类型，因为，我们任何一个指针都可以作为一个数组来使用，
+        进行对应的指针计算，所以这个0并不会省略。
+    第二个0是结构体的计算地址，表示的是结构体的第0个元素的地址，这时，会根据结构体指针的类型，
+        选取其中的元素长度，进行计算，最后返回的则是结构体成员的指针。
     */
     set<Pointer *> getPointerSetFromLoadInst(Value *loadInst) {
         assert(isa<LoadInst>(loadInst));
@@ -172,38 +241,22 @@ public:
         int offset = this->getOffset(getInst);
 
         // property set
+        return this->getPointerSet(structV, offset);
     }
-    void insertPointerFromStoreInst(Value *storeInst) {
-        //getelementptr
-        Value *getInst;// TODO
-        Value *source;
-
-        Value *structV = this->getStruct(getInst);
-        int offset = this->getOffset(getInst);
+    /*
+    store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr, align 8, !dbg !51
+    */
+    void insertPointerFromStoreInst(Value *stInst) {
+        assert(isa<StoreInst>(stInst));
+        StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
 
         // if this struct exist in structMap
-        if (this->isStructExist(structV)) {
-            // get the offset map and the property value set
-            map<int, set<Pointer *>> offsetMap = structMap[structV];
-            set<Pointer *> propertyValueSet = offsetMap[offset];
-
-            // insert new value into property value set
-            Pointer *sourcePtr = new Pointer(source);
-            propertyValueSet.insert(sourcePtr);
+        if (this->isStructExist(this->getStruct(storeInst->getPointerOperand()))) {
+            this->insertExistStructPointer(storeInst);
         }
         // not exist
         else {
-            // construct a property value set
-            set<Pointer *> propertyValueSet;
-            Pointer *sourcePtr = new Pointer(source);
-            propertyValueSet.insert(sourcePtr);
-
-            // construct a offset map
-            map<int, set<Pointer *>> offsetMap;
-            offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
-
-            // insert into structMap
-            structMap.insert(pair<Value *, map<int, set<Pointer *>>>(structV, offsetMap));
+            this->insertNotExistStructPointer(storeInst);
         }
     }
 };
@@ -213,13 +266,22 @@ class PointerManager {
     ReturnManager retManager;
     StructPropertyManager structPropertyManager;
     
+    bool isPointerExist(Value *value) {
+        return pointerMap.find(value) != pointerMap.end();
+    }
+    Pointer* getPointerByValue(Value *value) {
+        if (this->isPointerExist(value)) {
+            return pointerMap[value];
+        }
+        return NULL;
+    }
 public:
     // struct
     set<Pointer*> getPointerSetFromLoadInst(Value *loadInst) {
         return this->structPropertyManager.getPointerSetFromLoadInst(loadInst);
     }
-    void insertStructProperty(Value *getInst) {
-
+    void insertStructProperty(Value *stInst) {
+        this->structPropertyManager.insertPointerFromStoreInst(stInst);
     }
 
     // return
@@ -234,17 +296,7 @@ public:
         retManager.insertReturn(funcPtr, retPtr);
     }
 
-    Pointer* getPointerByValue(Value *value) {
-        if (this->isPointerExist(value)) {
-            return pointerMap[value];
-        }
-        return NULL;
-    }
-
-    bool isPointerExist(Value *value) {
-        return pointerMap.find(value) != pointerMap.end();
-    }
-
+    // get
     Pointer* getPointerFromValue(Value *value) {
         if (isPointerExist(value)) {
             return this->getPointerByValue(value);
@@ -312,9 +364,9 @@ struct FuncPtrPass : public ModulePass {
                     if (isa<PHINode>(&I)) {
                         this->dealPHI(&I);
                     }
-                    // Branch Instruction
-                    if (isa<BranchInst>(&I)) {
-                        this->dealBranchInst(&I);
+                    // Store Instruction
+                    if (isa<StoreInst>(&I)) {
+                        this->manager.insertStructProperty(&I);
                     }
                 }
             }
@@ -361,6 +413,8 @@ struct FuncPtrPass : public ModulePass {
         // a certain function
         else if (isa<Function>(calledValue))   
             this->dealCallFunction(callInst, calledValue); 
+        else if (isa<LoadInst>(calledValue))
+            this->dealCallLoadInst(callInst, calledValue);
         // a function pointer
         else if (isFunctionPointer(calledValue)) {
             // a phi of function pointers
@@ -369,6 +423,12 @@ struct FuncPtrPass : public ModulePass {
             else
                 this->dealCallFunctionPointer(callInst, calledValue);
         }
+    }
+    void dealCallLoadInst(Value *call, Value *lInst) {
+        set<Pointer *> ptrSet = this->manager.getPointerSetFromLoadInst(lInst);
+
+        Pointer *loadInstPrt = this->manager.getPointerFromValue(lInst);
+        loadInstPrt->pointToPointSet(ptrSet);
     }
     void dealCallPHI(Value *call, Value *p) {
         PHINode *phi = dyn_cast<PHINode>(p);
@@ -379,27 +439,6 @@ struct FuncPtrPass : public ModulePass {
         for (it = phiSet.begin(); it != phiSet.end(); ++it) {
             this->dealCallFunction(call, (*it)->getValue());
         }
-        /*
-        BasicBlock **b = phi->block_begin();            // phi value blocks
-        Use *u_ptr = phi->incoming_values().begin();    // phi values
-
-        while (b != phi->block_end() && u_ptr != phi->incoming_values().end()) {
-            // phi pointer to its values
-            Value *v = u_ptr->get();
-            Pointer *valuePtr = this->manager.getPointerFromValue(v);
-            phiPtr->pointToPointer(valuePtr);
-
-            if (isa<Function>(v)) {
-                this->bindFunctionParams(call, v, *b);
-            }
-            else if (isa<PHINode>(v)) {
-                this->dealCallPHI(call, v);
-            }
-
-            ++b;
-            ++u_ptr;
-        }
-        */
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
         Pointer *funcPtr = this->manager.getPointerFromValue(fptr);
@@ -486,26 +525,6 @@ struct FuncPtrPass : public ModulePass {
 
             ++u_ptr;
         }
-
-        /*
-        // deal the always true name
-        Use *u_ptr = phi->incoming_values().begin();
-        BasicBlock **b_ptr = phi->block_begin();
-        while (u_ptr != phi->incoming_values().end() && b_ptr != phi->block_end()) {
-            bool isAlwaysTrueName = alwaysTrues.isAlwarysTrue(*b_ptr);
-            if (isAlwaysTrueName && isIfBlock(*b_ptr)) {
-                funcNames.deleteKey(phi);
-                funcNames.insertName(phi, u_ptr->get());
-                break;
-            }
-
-            ++u_ptr;
-            ++b_ptr;
-        }
-        */
-    }
-    void dealBranchInst(Value *v) {
-
     }
 };
 

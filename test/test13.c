@@ -25,7 +25,7 @@ int moo(char x, int op1, int op2) {
        t_fptr.p_fptr = a_fptr;
     } 
     else if (x == '-') {
-       t_fptr .p_fptr= s_fptr;
+       t_fptr.p_fptr= s_fptr;
     }
 
     unsigned result = clever(op1, op2, t_fptr);
