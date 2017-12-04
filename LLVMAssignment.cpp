@@ -88,11 +88,11 @@ public:
         assert(isa<Instruction>(iV));
         Instruction *inst = dyn_cast<Instruction>(iV);
 
-        
+        /*
         errs() << "===========\n";
         this->value->dump();
         inst->dump();
-        
+        */
         
         set<Pointer *>::iterator it;
         for (it = this->pointToSet.begin(); it != this->pointToSet.end(); ++it) {
@@ -104,14 +104,14 @@ public:
             // if in the same basic block
             if (isa<StoreInst>(inst) && inst->getParent() == oldInst->getParent()) {
                 this->pointToSet.erase(*it);
-                errs() << "erased!\n";
+                //errs() << "erased!\n";
             }
         }
         this->pointToSet.insert(ptr);
         this->blockMap.insert(pair<Pointer *, Value *>(ptr, iV));
 
-        this->output();
-        errs() << "+++++++++++\n";
+        //this->output();
+        //errs() << "+++++++++++\n";
     }
     void pointToPointSet(set<Pointer *> pSet, Value *iV) {
         set<Pointer *>::iterator it;
@@ -168,25 +168,62 @@ public:
 };
 
 class ReturnManager {
-    map<Pointer *, Pointer *> returnMap;
-
 public:
-    void insertReturn(Pointer *func, Pointer *ret) {
-        returnMap.insert(pair<Pointer *, Pointer *>(func, ret));
-    }
-    Pointer* getReturnByFunc(Pointer *func) {
-        if (returnMap.find(func) != returnMap.end())
-            return returnMap[func];
-        else 
+    Value* getReturnValueByFuncValue(Value *func) {
+        if (!isa<Function>(func))
             return NULL;
+        
+        Value *ret = NULL;
+        Function &F = *(dyn_cast<Function>(func));
+        if (F.getReturnType()->isPointerTy()) {
+            for (BasicBlock &B : F) {
+                for (Instruction &I : B) {
+                    if (isa<ReturnInst>(&I)) {
+                        ReturnInst *retInst = dyn_cast<ReturnInst>(&I);
+                        ret = retInst->getReturnValue();
+                    }
+                }
+            }
+        }
+        return ret;
     }
 };
 
-class StructPropertyManager {
+class PointerManager {
+    map<Value *, Pointer *> pointerMap;
+    
+    bool isPointerExist(Value *value) {
+        return pointerMap.find(value) != pointerMap.end();
+    }
+    Pointer* getPointerByValue(Value *value) {
+        if (this->isPointerExist(value)) {
+            return pointerMap[value];
+        }
+        return NULL;
+    }
+public:
+    // get
+    Pointer* getPointerFromValue(Value *value) {
+        if (isPointerExist(value)) {
+            return this->getPointerByValue(value);
+        }
+        // when map keys not include this value
+        // generate a new pointer
+        // and add it to the pointer map
+        else {
+            Pointer *newPointer = new Pointer(value);
+            pointerMap.insert(pair<Value *, Pointer *>(value, newPointer));
+            return newPointer;
+        }
+    }
+};
+
+class PropertyManager {
     // struct value -> map
     // map: offset -> property value pointer
     map<Value *, map<int, set<Pointer *>>> structMap;
     map<Pointer *, Value *> ptrMap;// property ptr -> store inst
+    PointerManager ptrManager;
 
     Value* getStruct(Value *getInst) {
         assert(isa<GetElementPtrInst>(getInst));
@@ -279,17 +316,6 @@ class StructPropertyManager {
         this->structMap.insert(pair<Value *, map<int, set<Pointer *>>>(structV, offsetMap));
     }
 public:
-    /*
-    %p_fptr5 = getelementptr inbounds %struct.fptr, %struct.fptr* %t_fptr, i32 0, i32 0, !dbg !60
-    %2 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr5, align 8, !dbg !60
-    %call = call i32 %2(i32 1, i32 2), !dbg !62
-    */
-    /*
-    第一个0是数组计算符，并不会改变返回的类型，因为，我们任何一个指针都可以作为一个数组来使用，
-        进行对应的指针计算，所以这个0并不会省略。
-    第二个0是结构体的计算地址，表示的是结构体的第0个元素的地址，这时，会根据结构体指针的类型，
-        选取其中的元素长度，进行计算，最后返回的则是结构体成员的指针。
-    */
     set<Pointer *> getPointerSetFromLoadInst(Value *loadInst) {
         assert(isa<LoadInst>(loadInst));
 
@@ -303,9 +329,6 @@ public:
         // property set
         return this->getPointerSet(structV, offset);
     }
-    /*
-    store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr, align 8, !dbg !51
-    */
     void insertPointerFromStoreInst(Value *stInst) {
         assert(isa<StoreInst>(stInst));
         StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
@@ -317,57 +340,6 @@ public:
         // not exist
         else {
             this->insertNotExistStructPointer(storeInst);
-        }
-    }
-};
-
-class PointerManager {
-    map<Value *, Pointer *> pointerMap;
-    ReturnManager retManager;
-    StructPropertyManager structPropertyManager;
-    
-    bool isPointerExist(Value *value) {
-        return pointerMap.find(value) != pointerMap.end();
-    }
-    Pointer* getPointerByValue(Value *value) {
-        if (this->isPointerExist(value)) {
-            return pointerMap[value];
-        }
-        return NULL;
-    }
-public:
-    // struct
-    set<Pointer*> getPointerSetFromLoadInst(Value *loadInst) {
-        return this->structPropertyManager.getPointerSetFromLoadInst(loadInst);
-    }
-    void insertStructProperty(Value *stInst) {
-        this->structPropertyManager.insertPointerFromStoreInst(stInst);
-    }
-
-    // return
-    Pointer* getReturnByFunc(Value *func) {
-        Pointer *funcPtr = this->getPointerFromValue(func);
-        return this->retManager.getReturnByFunc(funcPtr);
-    }
-    void insertReturn(Value *func, Value *ret) {
-        Pointer *retPtr = this->getPointerFromValue(ret);
-        Pointer *funcPtr = this->getPointerFromValue(func);
-
-        retManager.insertReturn(funcPtr, retPtr);
-    }
-
-    // get
-    Pointer* getPointerFromValue(Value *value) {
-        if (isPointerExist(value)) {
-            return this->getPointerByValue(value);
-        }
-        // when map keys not include this value
-        // generate a new pointer
-        // and add it to the pointer map
-        else {
-            Pointer *newPointer = new Pointer(value);
-            pointerMap.insert(pair<Value *, Pointer *>(value, newPointer));
-            return newPointer;
         }
     }
 };
@@ -405,7 +377,9 @@ public:
 
 ///!TODO TO BE COMPLETED BY YOU FOR ASSIGNMENT 3
 struct FuncPtrPass : public ModulePass {
-    PointerManager manager;
+    PointerManager pointerManager;
+    ReturnManager returnManager;
+    PropertyManager propertyManager;
     LineFunctionPtr lineFuncs;
 
     static char ID; // Pass identification, replacement for typeid
@@ -462,10 +436,10 @@ struct FuncPtrPass : public ModulePass {
         Value *source = storeInst->getValueOperand();
 
         if (isa<GetElementPtrInst>(des))
-            this->manager.insertStructProperty(storeInst);
+            this->propertyManager.insertPointerFromStoreInst(storeInst);
         else if (isa<BitCastInst>(des)) {
-            Pointer *desPtr = this->manager.getPointerFromValue(des);
-            Pointer *sourcePtr = this->manager.getPointerFromValue(source);
+            Pointer *desPtr = this->pointerManager.getPointerFromValue(des);
+            Pointer *sourcePtr = this->pointerManager.getPointerFromValue(source);
             desPtr->copyPointToSet(sourcePtr, v);
         }
     }
@@ -479,8 +453,8 @@ struct FuncPtrPass : public ModulePass {
         v->dump();
         */
 
-        Pointer *loadInstPtr = this->manager.getPointerFromValue(v);
-        Pointer *operandPtr = this->manager.getPointerFromValue(value);
+        Pointer *loadInstPtr = this->pointerManager.getPointerFromValue(v);
+        Pointer *operandPtr = this->pointerManager.getPointerFromValue(value);
         loadInstPtr->copyPointToSet(operandPtr, v);
     }
     void dealCallInst(Value *v) {
@@ -491,7 +465,7 @@ struct FuncPtrPass : public ModulePass {
         unsigned line = loc->getLine();
         // called value
         Value *calledValue = callInst->getCalledValue();
-        Pointer *calledPtr = this->manager.getPointerFromValue(calledValue);
+        Pointer *calledPtr = this->pointerManager.getPointerFromValue(calledValue);
         lineFuncs.insertLineFunctionPtr(line, calledPtr);
 
         // deal all kinds of call
@@ -525,13 +499,13 @@ struct FuncPtrPass : public ModulePass {
         }
     }
     void dealCallStructLoad(Value *call, Value *lInst) {
-        set<Pointer *> ptrSet = this->manager.getPointerSetFromLoadInst(lInst);
+        set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(lInst);
 
-        Pointer *loadInstPrt = this->manager.getPointerFromValue(lInst);
+        Pointer *loadInstPrt = this->pointerManager.getPointerFromValue(lInst);
         loadInstPrt->pointToPointSet(ptrSet, lInst);
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
-        Pointer *funcPtr = this->manager.getPointerFromValue(fptr);
+        Pointer *funcPtr = this->pointerManager.getPointerFromValue(fptr);
         set<Pointer *> pSet = funcPtr->getBasePointerSet();
         set<Pointer *>::iterator it;
         for (it = pSet.begin(); it != pSet.end(); ++it) {
@@ -548,11 +522,12 @@ struct FuncPtrPass : public ModulePass {
 
         // if return pointer value
         if (dyn_cast<Function>(func)->getReturnType()->isPointerTy() && func->getName() != "malloc") {
-            this->manager.insertReturn(func, this->getReturnValue(func));
+            Value *ret = this->returnManager.getReturnValueByFuncValue(func);
+            Pointer *retPtr = this->pointerManager.getPointerFromValue(ret);
+            Pointer *funcPtr = this->pointerManager.getPointerFromValue(func);
 
             // bind the callinst and the return value
-            Pointer *callPtr = this->manager.getPointerFromValue(call);
-            Pointer *retPtr = this->manager.getReturnByFunc(func);
+            Pointer *callPtr = this->pointerManager.getPointerFromValue(call);
             callPtr->copyPointToSet(retPtr, call);
         }
     }
@@ -578,37 +553,19 @@ struct FuncPtrPass : public ModulePass {
         }
     }
     void bindFuncPtrParam(Value *call, Argument *arg, Value *realV) {
-        Pointer *argPtr = this->manager.getPointerFromValue(arg);
-        Pointer *realVPtr = this->manager.getPointerFromValue(realV);
+        Pointer *argPtr = this->pointerManager.getPointerFromValue(arg);
+        Pointer *realVPtr = this->pointerManager.getPointerFromValue(realV);
         argPtr->copyPointToSet(realVPtr, call);
-    }
-    Value* getReturnValue(Value *func) {
-        if (!isa<Function>(func))
-            return NULL;
-        
-        Value *ret = NULL;
-        Function &F = *(dyn_cast<Function>(func));
-        if (F.getReturnType()->isPointerTy()) {
-            for (BasicBlock &B : F) {
-                for (Instruction &I : B) {
-                    if (isa<ReturnInst>(&I)) {
-                        ReturnInst *retInst = dyn_cast<ReturnInst>(&I);
-                        ret = retInst->getReturnValue();
-                    }
-                }
-            }
-        }
-        return ret;
     }
     void dealPHI(Value *value) {
         PHINode *phi = dyn_cast<PHINode>(value);
-        Pointer *phiPtr = this->manager.getPointerFromValue(phi);
+        Pointer *phiPtr = this->pointerManager.getPointerFromValue(phi);
 
         Use *u_ptr = phi->incoming_values().begin();
         while (u_ptr != phi->incoming_values().end()) {
             // include the null
             // phi pointer to its values
-            Pointer *ptr = this->manager.getPointerFromValue(u_ptr->get());
+            Pointer *ptr = this->pointerManager.getPointerFromValue(u_ptr->get());
             phiPtr->copyPointToSet(ptr, phi);
 
             ++u_ptr;
