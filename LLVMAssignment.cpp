@@ -63,7 +63,7 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
-#define IS_DEBUG true
+#define IS_DEBUG false
 
 class Pointer {
     set<Pointer *> pointToSet;
@@ -255,28 +255,98 @@ public:
     }
 };
 
+PointerManager pointerManager;
+
 class PropertyManager {
+    map<Pointer *, Value *> ptrMap;// property ptr -> store inst
+
+    /*
+    t_fptr[1]
+    %arrayidx = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !56
+    %arrayidx3 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !63
+    %arrayidx7 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !70
+    */
     // struct value -> map
     // map: offset -> property value pointer
-    map<Value *, map<int, set<Pointer *>>> structMap;
-    map<Pointer *, Value *> ptrMap;// property ptr -> store inst
+    map<Value *, map<int, set<Pointer *>>> ownerMap;
     PointerManager ptrManager;
 
-    Value* getStruct(Value *getInst) {
+    
+    void generatePtrMap(Pointer *ptr, Value *value) {
+        this->ptrMap.insert(pair<Pointer *, Value *>(ptr, value));
+    }
+    void insertExistOwnerPointer(StoreInst *storeInst) {
+        // getelementptr
+        Value *getInst = storeInst->getPointerOperand();
+        Value *source = storeInst->getValueOperand();
+        Value *owner = this->getOwner(getInst);
+        int offset = this->getOffset(getInst);
+
+        // basic block of the new source
+        BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
+
+        // get the offset map and the property value set
+        set<Pointer *> originSet = this->ownerMap[owner][offset];
+        set<Pointer *> newSet;
+        set<Pointer *>::iterator it;
+        for (it = originSet.begin(); it != originSet.end(); ++it) {
+            Value *v = this->ptrMap[(*it)];
+            assert(isa<Instruction>(v));
+            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
+
+            // delete the old pointer in the same basic block
+            // delete the old pointer that has the same value // !TODO
+            if (b != block && (*it)->getValue() != source)
+                newSet.insert(*it);
+        }
+
+        // insert new value into property value set
+        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
+        newSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // update the set
+        this->ownerMap[owner][offset] = newSet;
+    }
+    void insertNotExistOwnerPointer(StoreInst *storeInst) {
+        // getelementptr
+        Value *getInst = storeInst->getPointerOperand();
+        Value *source = storeInst->getValueOperand();
+        Value *owner = this->getOwner(getInst);
+        int offset = this->getOffset(getInst);
+
+        // construct a property value set
+        set<Pointer *> propertyValueSet;
+        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
+        propertyValueSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // construct a offset map
+        map<int, set<Pointer *>> offsetMap;
+        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
+
+        // insert into structMap
+        this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
+    }
+
+    bool isValueExist(Value *value) {
+        return this->ownerMap.find(value) != this->ownerMap.end();
+    }
+    Value* getOwner(Value *getInst) {
         assert(isa<GetElementPtrInst>(getInst));
         return dyn_cast<GetElementPtrInst>(getInst)->getPointerOperand();
     }
-    int getOffset(Value *inst) {
-        assert(isa<GetElementPtrInst>(inst));
-        GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(inst);
+    int getOffset(Value *getInst) {
+        assert(isa<GetElementPtrInst>(getInst));
+        GetElementPtrInst *getInstr = dyn_cast<GetElementPtrInst>(getInst);
 
         #if IS_DEBUG
         errs() << "=== Get Offset ===\n";
-        getInst->dump();
+        getInstr->dump();
         #endif
 
         int count = 0;
-        for (Use *u = getInst->idx_begin(); u != getInst->idx_end(); ++u) {
+        for (Use *u = getInstr->idx_begin(); u != getInstr->idx_end(); ++u) {
             ++count;
 
             if (count == 2 && isa<ConstantInt>(u->get())) {
@@ -292,12 +362,9 @@ class PropertyManager {
 
         return 0;
     }
-    bool isStructExist(Value *value) {
-        return this->structMap.find(value) != this->structMap.end();
-    }
-    set<Pointer *> getPointerSet(Value *structV, int offset) {
-        if (this->isStructExist(structV)) {
-            map<int, set<Pointer *>> offsetMap = structMap[structV];
+    set<Pointer *> pointerSetWithVariableAndOffset(Value *value, int offset) {
+        if (this->isValueExist(value)) {
+            map<int, set<Pointer *>> offsetMap = this->ownerMap[value];
             return offsetMap[offset];
         }
         else {
@@ -305,104 +372,71 @@ class PropertyManager {
             return pSet;
         }
     }
-    void generatePtrMap(Pointer *ptr, Value *value) {
-        this->ptrMap.insert(pair<Pointer *, Value *>(ptr, value));
-    }
-    void insertExistStructPointer(StoreInst *storeInst) {
-        // getelementptr
-        Value *getInst = storeInst->getPointerOperand();
-        Value *source = storeInst->getValueOperand();
-        Value *structV = this->getStruct(getInst);
-        int offset = this->getOffset(getInst);
-
-        // basic block of the new source
-        BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
-
-        // get the offset map and the property value set
-        set<Pointer *> originSet = structMap[structV][offset];
-        set<Pointer *> newSet;
-        set<Pointer *>::iterator it;
-        for (it = originSet.begin(); it != originSet.end(); ++it) {
-            Value *v = this->ptrMap[(*it)];
-            assert(isa<Instruction>(v));
-            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
-
-            // delete the old pointer in the same basic block
-            // delete the old pointer that has the same value // !TODO
-            if (b != block && (*it)->getValue() != source)
-                newSet.insert(*it);
-        }
-
-        // insert new value into property value set
-        Pointer *sourcePtr = new Pointer(source);
-        newSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
-
-        // update the set
-        this->structMap[structV][offset] = newSet;
-    }
-    void insertNotExistStructPointer(StoreInst *storeInst) {
-        // getelementptr
-        Value *getInst = storeInst->getPointerOperand();
-        Value *source = storeInst->getValueOperand();
-        Value *structV = this->getStruct(getInst);
-        int offset = this->getOffset(getInst);
-
-        // construct a property value set
-        set<Pointer *> propertyValueSet;
-        Pointer *sourcePtr = new Pointer(source);
-        propertyValueSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
-
-        // construct a offset map
-        map<int, set<Pointer *>> offsetMap;
-        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
-
-        // insert into structMap
-        this->structMap.insert(pair<Value *, map<int, set<Pointer *>>>(structV, offsetMap));
-    }
 public:
+    /*
+    r_fptr[1] = q_fptr[0];
+    %arrayidx12 = getelementptr inbounds [1 x i32 (i32, i32)*], [1 x i32 (i32, i32)*]* %q_fptr, i64 0, i64 0, !dbg !78
+    %1 = load i32 (i32, i32)*, i32 (i32, i32)** %arrayidx12, align 8, !dbg !78
+    %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
+    store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
+    */
     set<Pointer *> getPointerSetFromLoadInst(Value *loadInst) {
         assert(isa<LoadInst>(loadInst));
 
         // get getelementptr instruction
         Value *getInst = dyn_cast<LoadInst>(loadInst)->getPointerOperand();
 
-        #if IS_DEBUG
-        getInst->dump();
-        #endif
-
-        // get struct, offset
-        Value *structV = this->getStruct(getInst);
+        // get varaiable, offset
+        Value *owner = this->getOwner(getInst);
         int offset = this->getOffset(getInst);
 
+        #if IS_DEBUG
+        errs() << "=== getPointerSetFromLoadInst === \nGetElementPtrInst:\n";
+        getInst->dump();
+        errs() << "LoadInst:\n";
+        loadInst->dump();
+
+        set<Pointer *> ptrSet = this->pointerSetWithVariableAndOffset(owner, offset);
+        errs() << "Set size : " << ptrSet.size() << "\n";
+        set<Pointer *>::iterator it;
+        for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
+            (*it)->getValue()->dump();
+        }
+        #endif 
+
         // property set
-        return this->getPointerSet(structV, offset);
+        return this->pointerSetWithVariableAndOffset(owner, offset);
     }
     void insertPointerFromStoreInst(Value *stInst) {
         assert(isa<StoreInst>(stInst));
         StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
 
-        // if this struct exist in structMap
-        if (this->isStructExist(this->getStruct(storeInst->getPointerOperand()))) {
+        #if IS_DEBUG
+        errs() << "=== insertPointerFromStoreInst === \n";
+        errs() << "StoreInst:\n";
+        stInst->dump();
+        #endif
+
+        // if this value exist in ownerMap
+        Value *v = this->getOwner(storeInst->getPointerOperand());
+        if (this->isValueExist(v)) {
             #if IS_DEBUG
-            errs() << "Struct Exist\n";
+            errs() << "Owner Exist\n";
             #endif
-            this->insertExistStructPointer(storeInst);
+            this->insertExistOwnerPointer(storeInst);
         }
         // not exist
         else {
             #if IS_DEBUG
-            errs() << "Struct Not Exist\n";
+            errs() << "Owner Not Exist\n";
             #endif
-            this->insertNotExistStructPointer(storeInst);
+            this->insertNotExistOwnerPointer(storeInst);
         }
     }
 };
 
 ///!TODO TO BE COMPLETED BY YOU FOR ASSIGNMENT 3
 struct FuncPtrPass : public ModulePass {
-    PointerManager pointerManager;
     ReturnManager returnManager;
     PropertyManager propertyManager;
     LineFunctionPtr lineFuncs;
@@ -469,25 +503,28 @@ struct FuncPtrPass : public ModulePass {
         if (isa<GetElementPtrInst>(des))
             this->propertyManager.insertPointerFromStoreInst(storeInst);
         else if (isa<BitCastInst>(des)) {
-            Pointer *desPtr = this->pointerManager.getPointerFromValue(des);
-            Pointer *sourcePtr = this->pointerManager.getPointerFromValue(source);
+            Pointer *desPtr = pointerManager.getPointerFromValue(des);
+            Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
             desPtr->copyPointToSet(sourcePtr, v);
         }
     }
-    void dealLoadInst(Value *v) {
+    void dealLoadInst(Value *v) { 
         assert(isa<LoadInst>(v));
-        Pointer *loadInstPtr = this->pointerManager.getPointerFromValue(v);
 
-        Value *value = dyn_cast<LoadInst>(v)->getPointerOperand();
-        Pointer *operandPtr = this->pointerManager.getPointerFromValue(value);
+        Value *des = dyn_cast<LoadInst>(v)->getPointerOperand();
+        if (isa<GetElementPtrInst>(des)) {
+            set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(v);
 
-        loadInstPtr->copyPointToSet(operandPtr, v);
+            Pointer *loadInstPtr = pointerManager.getPointerFromValue(v);
+            loadInstPtr->pointToPointSet(ptrSet, v);
 
-        #if IS_DEBUG
-        errs() << "===Load\n";
-        value->dump();
-        v->dump();
-        #endif
+            #if IS_DEBUG
+            errs() << "=== dealLoadInst ===\nGetElementPtrInst:\n";
+            des->dump();
+            errs() << "\nLoadInst:\n";
+            v->dump();
+            #endif
+        }
     }
     void dealCallInst(Value *v) {
         CallInst *callInst = dyn_cast<CallInst>(v);
@@ -497,7 +534,7 @@ struct FuncPtrPass : public ModulePass {
         unsigned line = loc->getLine();
         // called value
         Value *calledValue = callInst->getCalledValue();
-        Pointer *calledPtr = this->pointerManager.getPointerFromValue(calledValue);
+        Pointer *calledPtr = pointerManager.getPointerFromValue(calledValue);
         lineFuncs.insertLineFunctionPtr(line, calledPtr);
 
         // deal all kinds of call
@@ -533,11 +570,11 @@ struct FuncPtrPass : public ModulePass {
     void dealCallPropertyLoad(Value *call, Value *lInst) {
         set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(lInst);
 
-        Pointer *loadInstPrt = this->pointerManager.getPointerFromValue(lInst);
+        Pointer *loadInstPrt = pointerManager.getPointerFromValue(lInst);
         loadInstPrt->pointToPointSet(ptrSet, lInst);
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
-        Pointer *funcPtr = this->pointerManager.getPointerFromValue(fptr);
+        Pointer *funcPtr = pointerManager.getPointerFromValue(fptr);
         set<Pointer *> pSet = funcPtr->getBasePointerSet();
         set<Pointer *>::iterator it;
         for (it = pSet.begin(); it != pSet.end(); ++it) {
@@ -555,11 +592,11 @@ struct FuncPtrPass : public ModulePass {
         // if return pointer value
         if (dyn_cast<Function>(func)->getReturnType()->isPointerTy() && func->getName() != "malloc") {
             Value *ret = this->returnManager.getReturnValueByFuncValue(func);
-            Pointer *retPtr = this->pointerManager.getPointerFromValue(ret);
-            Pointer *funcPtr = this->pointerManager.getPointerFromValue(func);
+            Pointer *retPtr = pointerManager.getPointerFromValue(ret);
+            Pointer *funcPtr = pointerManager.getPointerFromValue(func);
 
             // bind the callinst and the return value
-            Pointer *callPtr = this->pointerManager.getPointerFromValue(call);
+            Pointer *callPtr = pointerManager.getPointerFromValue(call);
             callPtr->copyPointToSet(retPtr, call);
         }
     }
@@ -585,19 +622,19 @@ struct FuncPtrPass : public ModulePass {
         }
     }
     void bindFuncPtrParam(Value *call, Argument *arg, Value *realV) {
-        Pointer *argPtr = this->pointerManager.getPointerFromValue(arg);
-        Pointer *realVPtr = this->pointerManager.getPointerFromValue(realV);
+        Pointer *argPtr = pointerManager.getPointerFromValue(arg);
+        Pointer *realVPtr = pointerManager.getPointerFromValue(realV);
         argPtr->copyPointToSet(realVPtr, call);
     }
     void dealPHI(Value *value) {
         PHINode *phi = dyn_cast<PHINode>(value);
-        Pointer *phiPtr = this->pointerManager.getPointerFromValue(phi);
+        Pointer *phiPtr = pointerManager.getPointerFromValue(phi);
 
         Use *u_ptr = phi->incoming_values().begin();
         while (u_ptr != phi->incoming_values().end()) {
             // include the null
             // phi pointer to its values
-            Pointer *ptr = this->pointerManager.getPointerFromValue(u_ptr->get());
+            Pointer *ptr = pointerManager.getPointerFromValue(u_ptr->get());
             phiPtr->copyPointToSet(ptr, phi);
 
             ++u_ptr;
