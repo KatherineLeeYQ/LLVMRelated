@@ -63,6 +63,8 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
+#define IS_DEBUG true
+
 class Pointer {
     set<Pointer *> pointToSet;
     map<Pointer *, Value *> blockMap;
@@ -88,11 +90,11 @@ public:
         assert(isa<Instruction>(iV));
         Instruction *inst = dyn_cast<Instruction>(iV);
 
-        /*
+        #if IS_DEBUG
         errs() << "===========\n";
         this->value->dump();
         inst->dump();
-        */
+        #endif
         
         set<Pointer *>::iterator it;
         for (it = this->pointToSet.begin(); it != this->pointToSet.end(); ++it) {
@@ -104,14 +106,19 @@ public:
             // if in the same basic block
             if (isa<StoreInst>(inst) && inst->getParent() == oldInst->getParent()) {
                 this->pointToSet.erase(*it);
-                //errs() << "erased!\n";
+                
+                #if IS_DEBUG
+                errs() << "erased!\n";
+                #endif
             }
         }
         this->pointToSet.insert(ptr);
         this->blockMap.insert(pair<Pointer *, Value *>(ptr, iV));
 
-        //this->output();
-        //errs() << "+++++++++++\n";
+        #if IS_DEBUG
+        this->output();
+        errs() << "+++++++++++\n";
+        #endif
     }
     void pointToPointSet(set<Pointer *> pSet, Value *iV) {
         set<Pointer *>::iterator it;
@@ -189,6 +196,37 @@ public:
     }
 };
 
+class LineFunctionPtr {
+    map<int, Pointer *> lineMap;
+
+public:
+    LineFunctionPtr() {}
+
+    void insertLineFunctionPtr(int line, Pointer *ptr) {
+        // line not add to map yet
+        if (lineMap.find(line) == lineMap.end()) {
+            lineMap.insert(pair<int, Pointer *>(line, ptr));
+        }
+    }
+    void outputFuncNames(set<Pointer *> pointToSet) {
+        if (pointToSet.size() != 0) {
+            set<Pointer *>::iterator it;
+            for (it = pointToSet.begin(); it != --pointToSet.end(); ++it) {
+                errs() << (*it)->getValue()->getName() << ", ";
+            }
+            errs() << (*it)->getValue()->getName() << "\n";
+        }
+    }
+    void output() {
+        map<int, Pointer *>::iterator it;
+        for (it = lineMap.begin(); it != lineMap.end(); ++it) {
+            errs() << it->first << " : ";
+            set<Pointer *> ptrs = it->second->getBasePointerSet();
+            this->outputFuncNames(ptrs);
+        }
+    }
+};
+
 class PointerManager {
     map<Value *, Pointer *> pointerMap;
     
@@ -202,7 +240,6 @@ class PointerManager {
         return NULL;
     }
 public:
-    // get
     Pointer* getPointerFromValue(Value *value) {
         if (isPointerExist(value)) {
             return this->getPointerByValue(value);
@@ -232,7 +269,11 @@ class PropertyManager {
     int getOffset(Value *inst) {
         assert(isa<GetElementPtrInst>(inst));
         GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(inst);
-        //getInst->dump();
+
+        #if IS_DEBUG
+        errs() << "=== Get Offset ===\n";
+        getInst->dump();
+        #endif
 
         int count = 0;
         for (Use *u = getInst->idx_begin(); u != getInst->idx_end(); ++u) {
@@ -240,6 +281,11 @@ class PropertyManager {
 
             if (count == 2 && isa<ConstantInt>(u->get())) {
                 ConstantInt *c = dyn_cast<ConstantInt>(u->get());
+
+                #if IS_DEBUG
+                errs() << "Offset is : " << c->getLimitedValue() << "\n";
+                #endif
+
                 return c->getLimitedValue();
             }
         }
@@ -322,6 +368,10 @@ public:
         // get getelementptr instruction
         Value *getInst = dyn_cast<LoadInst>(loadInst)->getPointerOperand();
 
+        #if IS_DEBUG
+        getInst->dump();
+        #endif
+
         // get struct, offset
         Value *structV = this->getStruct(getInst);
         int offset = this->getOffset(getInst);
@@ -335,42 +385,17 @@ public:
 
         // if this struct exist in structMap
         if (this->isStructExist(this->getStruct(storeInst->getPointerOperand()))) {
+            #if IS_DEBUG
+            errs() << "Struct Exist\n";
+            #endif
             this->insertExistStructPointer(storeInst);
         }
         // not exist
         else {
+            #if IS_DEBUG
+            errs() << "Struct Not Exist\n";
+            #endif
             this->insertNotExistStructPointer(storeInst);
-        }
-    }
-};
-
-class LineFunctionPtr {
-    map<int, Pointer *> lineMap;
-
-public:
-    LineFunctionPtr() {}
-
-    void insertLineFunctionPtr(int line, Pointer *ptr) {
-        // line not add to map yet
-        if (lineMap.find(line) == lineMap.end()) {
-            lineMap.insert(pair<int, Pointer *>(line, ptr));
-        }
-    }
-    void outputFuncNames(set<Pointer *> pointToSet) {
-        if (pointToSet.size() != 0) {
-            set<Pointer *>::iterator it;
-            for (it = pointToSet.begin(); it != --pointToSet.end(); ++it) {
-                errs() << (*it)->getValue()->getName() << ", ";
-            }
-            errs() << (*it)->getValue()->getName() << "\n";
-        }
-    }
-    void output() {
-        map<int, Pointer *>::iterator it;
-        for (it = lineMap.begin(); it != lineMap.end(); ++it) {
-            errs() << it->first << " : ";
-            set<Pointer *> ptrs = it->second->getBasePointerSet();
-            this->outputFuncNames(ptrs);
         }
     }
 };
@@ -398,6 +423,12 @@ struct FuncPtrPass : public ModulePass {
                     if (isa<PHINode>(&I)) {
                         this->dealPHI(&I);
                     }
+                    /*
+                    // GetElementPtrInst
+                    if (isa<GetElementPtrInst>(&I)) {
+                        this->dealGetElementPtrInst(&I);
+                    }
+                    */
                     // Store Instruction
                     if (isa<StoreInst>(&I)) {
                         this->dealStoreInst(&I);
@@ -445,17 +476,18 @@ struct FuncPtrPass : public ModulePass {
     }
     void dealLoadInst(Value *v) {
         assert(isa<LoadInst>(v));
-        Value *value = dyn_cast<LoadInst>(v)->getPointerOperand();
+        Pointer *loadInstPtr = this->pointerManager.getPointerFromValue(v);
 
-        /*
+        Value *value = dyn_cast<LoadInst>(v)->getPointerOperand();
+        Pointer *operandPtr = this->pointerManager.getPointerFromValue(value);
+
+        loadInstPtr->copyPointToSet(operandPtr, v);
+
+        #if IS_DEBUG
         errs() << "===Load\n";
         value->dump();
         v->dump();
-        */
-
-        Pointer *loadInstPtr = this->pointerManager.getPointerFromValue(v);
-        Pointer *operandPtr = this->pointerManager.getPointerFromValue(value);
-        loadInstPtr->copyPointToSet(operandPtr, v);
+        #endif
     }
     void dealCallInst(Value *v) {
         CallInst *callInst = dyn_cast<CallInst>(v);
@@ -489,16 +521,16 @@ struct FuncPtrPass : public ModulePass {
     }
     void dealCallLoadInst(Value *call, Value *lInst) {
         assert(isa<LoadInst>(lInst));
-        Value *value = dyn_cast<LoadInst>(lInst)->getPointerOperand();
+        Value *subInst = dyn_cast<LoadInst>(lInst)->getPointerOperand();
 
-        if (isa<GetElementPtrInst>(value)) {
-            this->dealCallStructLoad(call, lInst);
+        if (isa<GetElementPtrInst>(subInst)) {
+            this->dealCallPropertyLoad(call, lInst);
         }
-        else if (isa<BitCastInst>(value)) {
-            this->dealCallFunctionPointer(call, value);
+        else if (isa<BitCastInst>(subInst)) {
+            this->dealCallFunctionPointer(call, subInst);
         }
     }
-    void dealCallStructLoad(Value *call, Value *lInst) {
+    void dealCallPropertyLoad(Value *call, Value *lInst) {
         set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(lInst);
 
         Pointer *loadInstPrt = this->pointerManager.getPointerFromValue(lInst);
