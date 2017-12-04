@@ -244,9 +244,6 @@ public:
         if (isPointerExist(value)) {
             return this->getPointerByValue(value);
         }
-        // when map keys not include this value
-        // generate a new pointer
-        // and add it to the pointer map
         else {
             Pointer *newPointer = new Pointer(value);
             pointerMap.insert(pair<Value *, Pointer *>(value, newPointer));
@@ -258,77 +255,15 @@ public:
 PointerManager pointerManager;
 
 class PropertyManager {
-    map<Pointer *, Value *> ptrMap;// property ptr -> store inst
-
-    /*
-    t_fptr[1]
-    %arrayidx = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !56
-    %arrayidx3 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !63
-    %arrayidx7 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %t_fptr, i64 0, i64 1, !dbg !70
-    */
     // struct value -> map
     // map: offset -> property value pointer
     map<Value *, map<int, set<Pointer *>>> ownerMap;
     PointerManager ptrManager;
+    map<Pointer *, Value *> ptrMap;// property ptr -> store inst
 
-    
     void generatePtrMap(Pointer *ptr, Value *value) {
         this->ptrMap.insert(pair<Pointer *, Value *>(ptr, value));
     }
-    void insertExistOwnerPointer(StoreInst *storeInst) {
-        // getelementptr
-        Value *getInst = storeInst->getPointerOperand();
-        Value *source = storeInst->getValueOperand();
-        Value *owner = this->getOwner(getInst);
-        int offset = this->getOffset(getInst);
-
-        // basic block of the new source
-        BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
-
-        // get the offset map and the property value set
-        set<Pointer *> originSet = this->ownerMap[owner][offset];
-        set<Pointer *> newSet;
-        set<Pointer *>::iterator it;
-        for (it = originSet.begin(); it != originSet.end(); ++it) {
-            Value *v = this->ptrMap[(*it)];
-            assert(isa<Instruction>(v));
-            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
-
-            // delete the old pointer in the same basic block
-            // delete the old pointer that has the same value // !TODO
-            if (b != block && (*it)->getValue() != source)
-                newSet.insert(*it);
-        }
-
-        // insert new value into property value set
-        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
-        newSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
-
-        // update the set
-        this->ownerMap[owner][offset] = newSet;
-    }
-    void insertNotExistOwnerPointer(StoreInst *storeInst) {
-        // getelementptr
-        Value *getInst = storeInst->getPointerOperand();
-        Value *source = storeInst->getValueOperand();
-        Value *owner = this->getOwner(getInst);
-        int offset = this->getOffset(getInst);
-
-        // construct a property value set
-        set<Pointer *> propertyValueSet;
-        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
-        propertyValueSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
-
-        // construct a offset map
-        map<int, set<Pointer *>> offsetMap;
-        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
-
-        // insert into structMap
-        this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
-    }
-
     bool isValueExist(Value *value) {
         return this->ownerMap.find(value) != this->ownerMap.end();
     }
@@ -371,6 +306,57 @@ class PropertyManager {
             set<Pointer *> pSet;
             return pSet;
         }
+    }
+    void insertExistOwnerPointer(StoreInst *storeInst, Value *getInst, 
+                                Value *source, Value*owner, int offset) {
+        #if IS_DEBUG
+        errs() << "Owner Exist\n";
+        #endif
+        
+        // basic block of the new source
+        BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
+
+        // get the offset map and the property value set
+        set<Pointer *> originSet = this->ownerMap[owner][offset];
+        set<Pointer *> newSet;
+        set<Pointer *>::iterator it;
+        for (it = originSet.begin(); it != originSet.end(); ++it) {
+            Value *v = this->ptrMap[(*it)];
+            assert(isa<Instruction>(v));
+            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
+
+            // delete the old pointer in the same basic block
+            // delete the old pointer that has the same value // !TODO
+            if (b != block && (*it)->getValue() != source)
+                newSet.insert(*it);
+        }
+
+        // insert new value into property value set
+        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
+        newSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // update the set
+        this->ownerMap[owner][offset] = newSet;
+    }
+    void insertNotExistOwnerPointer(StoreInst *storeInst, Value *getInst, 
+                                    Value *source, Value*owner, int offset) {
+        #if IS_DEBUG
+        errs() << "Owner Not Exist\n";
+        #endif
+                                    
+        // construct a property value set
+        set<Pointer *> propertyValueSet;
+        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
+        propertyValueSet.insert(sourcePtr);
+        this->generatePtrMap(sourcePtr, storeInst);
+
+        // construct a offset map
+        map<int, set<Pointer *>> offsetMap;
+        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
+
+        // insert into ownerMap
+        this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
     }
 public:
     /*
@@ -417,21 +403,18 @@ public:
         stInst->dump();
         #endif
 
+        // getelementptr
+        Value *getInst = storeInst->getPointerOperand();
+        Value *source = storeInst->getValueOperand();
+        Value *owner = this->getOwner(getInst);
+        int offset = this->getOffset(getInst);
+
         // if this value exist in ownerMap
-        Value *v = this->getOwner(storeInst->getPointerOperand());
-        if (this->isValueExist(v)) {
-            #if IS_DEBUG
-            errs() << "Owner Exist\n";
-            #endif
-            this->insertExistOwnerPointer(storeInst);
-        }
+        if (this->isValueExist(owner))
+            this->insertExistOwnerPointer(storeInst, getInst, source, owner, offset);
         // not exist
-        else {
-            #if IS_DEBUG
-            errs() << "Owner Not Exist\n";
-            #endif
-            this->insertNotExistOwnerPointer(storeInst);
-        }
+        else
+            this->insertNotExistOwnerPointer(storeInst, getInst, source, owner, offset);
     }
 };
 
@@ -457,12 +440,6 @@ struct FuncPtrPass : public ModulePass {
                     if (isa<PHINode>(&I)) {
                         this->dealPHI(&I);
                     }
-                    /*
-                    // GetElementPtrInst
-                    if (isa<GetElementPtrInst>(&I)) {
-                        this->dealGetElementPtrInst(&I);
-                    }
-                    */
                     // Store Instruction
                     if (isa<StoreInst>(&I)) {
                         this->dealStoreInst(&I);
