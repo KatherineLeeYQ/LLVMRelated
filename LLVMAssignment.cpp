@@ -470,6 +470,14 @@ struct FuncPtrPass : public ModulePass {
         return v->getType()->isPointerTy();
     }
 
+    /*
+    %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
+    store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
+
+    %call = call noalias i8* @malloc(i64 8) #3, !dbg !71
+    %0 = bitcast i8* %call to i32 (i32, i32)**, !dbg !72
+    store i32 (i32, i32)* @plus, i32 (i32, i32)** %0, align 8, !dbg !79
+    */
     void dealStoreInst(Value *v) {
         assert(isa<StoreInst>(v));
         StoreInst *storeInst = dyn_cast<StoreInst>(v);
@@ -482,17 +490,26 @@ struct FuncPtrPass : public ModulePass {
         else if (isa<BitCastInst>(des)) {
             Pointer *desPtr = pointerManager.getPointerFromValue(des);
             Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
-            desPtr->copyPointToSet(sourcePtr, v);
+            desPtr->pointToPointer(sourcePtr, v);
         }
     }
+    /*
+    %arrayidx12 = getelementptr inbounds [1 x i32 (i32, i32)*], [1 x i32 (i32, i32)*]* %q_fptr, i64 0, i64 0, !dbg !78
+    %1 = load i32 (i32, i32)*, i32 (i32, i32)** %arrayidx12, align 8, !dbg !78
+
+    %0 = bitcast i8* %call to i32 (i32, i32)**, !dbg !34
+    store i32 (i32, i32)* @plus, i32 (i32, i32)** %0, align 8, !dbg !40
+    %1 = load i32 (i32, i32)*, i32 (i32, i32)** %0, align 8, !dbg !42
+
+    [%call1 = call i32 %1(i32 1, i32 %x), !dbg !43]
+    */
     void dealLoadInst(Value *v) { 
         assert(isa<LoadInst>(v));
 
         Value *des = dyn_cast<LoadInst>(v)->getPointerOperand();
+        Pointer *loadInstPtr = pointerManager.getPointerFromValue(v);
         if (isa<GetElementPtrInst>(des)) {
             set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(v);
-
-            Pointer *loadInstPtr = pointerManager.getPointerFromValue(v);
             loadInstPtr->pointToPointSet(ptrSet, v);
 
             #if IS_DEBUG
@@ -500,7 +517,13 @@ struct FuncPtrPass : public ModulePass {
             des->dump();
             errs() << "\nLoadInst:\n";
             v->dump();
+            errs() << "Output:\n";
+            loadInstPtr->output();
             #endif
+        }
+        else if (isa<BitCastInst>(des)) {
+            Pointer *desPtr = pointerManager.getPointerFromValue(des);
+            loadInstPtr->pointToPointSet(desPtr->getPointerSet(), v);
         }
     }
     void dealCallInst(Value *v) {
