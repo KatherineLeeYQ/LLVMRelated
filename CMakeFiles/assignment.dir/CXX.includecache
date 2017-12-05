@@ -23,6 +23,8 @@ set
 -
 map
 -
+vector
+-
 llvm/Support/CommandLine.h
 -
 llvm/IRReader/IRReader.h
@@ -55,6 +57,8 @@ llvm/Pass.h
 /home/katherine/CompileClass/Assignment_3/llvm/Pass.h
 llvm/Support/raw_ostream.h
 /home/katherine/CompileClass/Assignment_3/llvm/Support/raw_ostream.h
+llvm/ADT/StringRef.h
+/home/katherine/CompileClass/Assignment_3/llvm/ADT/StringRef.h
 
 /home/katherine/CompileClass/Assignment_3/Liveness.h
 llvm/IR/Function.h

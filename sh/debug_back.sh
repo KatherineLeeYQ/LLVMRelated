@@ -16,6 +16,12 @@ echo "=== 06 ==="
 ./bin/assignment ./outfiles/test06.bc
 echo "=== 07 ==="
 ./bin/assignment ./outfiles/test07.bc
+echo "=== 08 ==="
+./bin/assignment ./outfiles/test08.bc
+echo "=== 09 ==="
+./bin/assignment ./outfiles/test09.bc
+echo "=== 10 ==="
+./bin/assignment ./outfiles/test10.bc
 echo "=== 11 ==="
 ./bin/assignment ./outfiles/test11.bc
 echo "=== 12 ==="

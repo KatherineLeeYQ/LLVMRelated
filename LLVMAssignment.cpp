@@ -14,6 +14,7 @@
 
 #include <set>
 #include <map>
+#include <vector>
 
 #include <llvm/Support/CommandLine.h>
 #include <llvm/IRReader/IRReader.h>
@@ -36,6 +37,7 @@
 #include <llvm/IR/DebugInfoMetadata.h>
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/StringRef.h"
 
 using namespace llvm;
 using namespace std;
@@ -63,7 +65,7 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
-#define IS_DEBUG true
+#define IS_DEBUG false
 
 class Pointer {
     set<Pointer *> pointToSet;
@@ -128,6 +130,11 @@ public:
     }
     void copyPointToSet(Pointer *ptr, Value *iV) {
         set<Pointer *> ptrSet = ptr->getPointerSet();
+
+        #if IS_DEBUG
+        errs() << "copy set size: " << ptrSet.size() << "\n";
+        #endif
+
         if (ptrSet.size() != 0)
             this->pointToPointSet(ptrSet, iV);
         else
@@ -224,6 +231,7 @@ public:
             set<Pointer *> ptrs = it->second->getBasePointerSet();
             this->outputFuncNames(ptrs);
         }
+        errs() << "\n";
     }
 };
 
@@ -255,10 +263,7 @@ public:
 PointerManager pointerManager;
 
 class PropertyManager {
-    // struct value -> map
-    // map: offset -> property value pointer
     map<Value *, map<int, set<Pointer *>>> ownerMap;
-    PointerManager ptrManager;
     map<Pointer *, Value *> ptrMap;// property ptr -> store inst
 
     void generatePtrMap(Pointer *ptr, Value *value) {
@@ -267,48 +272,9 @@ class PropertyManager {
     bool isValueExist(Value *value) {
         return this->ownerMap.find(value) != this->ownerMap.end();
     }
-    Value* getOwner(Value *getInst) {
-        assert(isa<GetElementPtrInst>(getInst));
-        return dyn_cast<GetElementPtrInst>(getInst)->getPointerOperand();
-    }
-    int getOffset(Value *getInst) {
-        assert(isa<GetElementPtrInst>(getInst));
-        GetElementPtrInst *getInstr = dyn_cast<GetElementPtrInst>(getInst);
-
-        #if IS_DEBUG
-        errs() << "=== Get Offset ===\n";
-        getInstr->dump();
-        #endif
-
-        int count = 0;
-        for (Use *u = getInstr->idx_begin(); u != getInstr->idx_end(); ++u) {
-            ++count;
-
-            if (count == 2 && isa<ConstantInt>(u->get())) {
-                ConstantInt *c = dyn_cast<ConstantInt>(u->get());
-
-                #if IS_DEBUG
-                errs() << "Offset is : " << c->getLimitedValue() << "\n";
-                #endif
-
-                return c->getLimitedValue();
-            }
-        }
-
-        return 0;
-    }
-    set<Pointer *> pointerSetWithVariableAndOffset(Value *value, int offset) {
-        if (this->isValueExist(value)) {
-            map<int, set<Pointer *>> offsetMap = this->ownerMap[value];
-            return offsetMap[offset];
-        }
-        else {
-            set<Pointer *> pSet;
-            return pSet;
-        }
-    }
-    void insertOwnerPointer(StoreInst *storeInst, Value *getInst, 
-                            Value *source, Value*owner, int offset) {
+    // insert
+    void insertOwnerPointer(Value *owner, int offset, 
+                            Value *source, StoreInst *storeInst) {
         #if IS_DEBUG
         errs() << "Owner Exist\n";
         #endif
@@ -340,6 +306,36 @@ class PropertyManager {
         this->ownerMap[owner][offset] = newSet;
     }
 public:
+    Value* getOwner(Value *getInst) {
+        assert(isa<GetElementPtrInst>(getInst));
+        return dyn_cast<GetElementPtrInst>(getInst)->getPointerOperand();
+    }
+    int getOffset(Value *getInst) {
+        assert(isa<GetElementPtrInst>(getInst));
+        GetElementPtrInst *getInstr = dyn_cast<GetElementPtrInst>(getInst);
+
+        #if IS_DEBUG
+        errs() << "=== Get Offset ===\n";
+        getInstr->dump();
+        #endif
+
+        int count = 0;
+        for (Use *u = getInstr->idx_begin(); u != getInstr->idx_end(); ++u) {
+            ++count;
+
+            if (count == 2 && isa<ConstantInt>(u->get())) {
+                ConstantInt *c = dyn_cast<ConstantInt>(u->get());
+
+                #if IS_DEBUG
+                errs() << "Offset is : " << c->getLimitedValue() << "\n";
+                #endif
+
+                return c->getLimitedValue();
+            }
+        }
+
+        return 0;
+    }
     /*
     r_fptr[1] = q_fptr[0];
     %arrayidx12 = getelementptr inbounds [1 x i32 (i32, i32)*], [1 x i32 (i32, i32)*]* %q_fptr, i64 0, i64 0, !dbg !78
@@ -347,31 +343,26 @@ public:
     %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
     store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
     */
-    set<Pointer *> propertyPointerSet(Value *getInst) {
-        assert(isa<GetElementPtrInst>(getInst));
-
-        // get varaiable, offset
-        Value *owner = this->getOwner(getInst);
-        int offset = this->getOffset(getInst);
-
+    set<Pointer *> propertyPointerSet(Value *owner, int offset) {
         #if IS_DEBUG
-        errs() << "=== propertyPointerSet === \nGetElementPtrInst:\n";
-        getInst->dump();
+        if (this->isValueExist(owner)) {
+            errs() << "Set Exist\n";
+        else 
+            errs() << "Set Not Exist\n";
+        #endif
 
-        set<Pointer *> ptrSet = this->pointerSetWithVariableAndOffset(owner, offset);
-        errs() << "Set size : " << ptrSet.size() << "\n";
-        set<Pointer *>::iterator it;
-        for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
-            (*it)->getValue()->dump();
+        if (this->isValueExist(owner)) {
+            return this->ownerMap[owner][offset];
+        } 
+        else {
+            set<Pointer *> rSet;
+            return rSet;
         }
-        #endif 
-
-        // property set
-        return this->pointerSetWithVariableAndOffset(owner, offset);
     }
     void insertPropertyPointer(Value *getInst, Value *source, Value *stInst) {
         assert(isa<GetElementPtrInst>(getInst));
         assert(isa<StoreInst>(stInst));
+        StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
 
         #if IS_DEBUG
         errs() << "=== insertPropertyPointer === \n";
@@ -381,13 +372,35 @@ public:
         source->dump();
         #endif
 
+        Pointer *getInstPtr = pointerManager.getPointerFromValue(getInst);
+        set<Pointer *> getPtrSet = getInstPtr->getPointerSet();
+
         // getelementptr
         Value *owner = this->getOwner(getInst);
         int offset = this->getOffset(getInst);
 
-        // if this value exist in ownerMap
-        StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
-        this->insertOwnerPointer(storeInst, getInst, source, owner, offset);
+        if (isa<LoadInst>(owner)) {
+            #if IS_DEBUG
+            errs() << "Owner is LoadInst:\n";
+            #endif
+
+            set<Pointer *>::iterator it;
+            for (it = getPtrSet.begin(); it != getPtrSet.end(); ++it) {
+                Value *newOwner = (*it)->getValue();//struct fptr
+
+                #if IS_DEBUG
+                errs() << "SubValue:\n";
+                subValue->dump();
+                #endif
+
+                this->insertOwnerPointer(newOwner, offset, source, storeInst);
+            }
+        }
+        // struct
+        else {
+            // if this value exist in ownerMap
+            this->insertOwnerPointer(owner, offset, source, storeInst);
+        }
     }
     void initProperty(Value *getInst) {
         assert(isa<GetElementPtrInst>(getInst));
@@ -406,6 +419,28 @@ public:
 
             // insert into ownerMap
             this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
+        }
+    }
+
+    // !TODO delete
+    void output() {
+        map<Value *, map<int, set<Pointer *>>>::iterator it1;
+        for (it1 = this->ownerMap.begin(); it1 != this->ownerMap.end(); ++it1) {
+            errs() << "Owner:\n";
+            it1->first->dump();
+
+            map<int, set<Pointer *>> m = it1->second;
+            map<int, set<Pointer *>>::iterator it2;
+            for (it2 = m.begin(); it2 != m.end(); ++it2) {
+                errs() << "Offset: " << it2->first << "\n";
+
+                set<Pointer *> s = it2->second;
+                set<Pointer *>::iterator it3;
+                errs() << "Value:\n";
+                for (it3 = s.begin(); it3 != s.end(); ++it3) {
+                    (*it3)->getValue()->dump();
+                }
+            }
         }
     }
 };
@@ -451,6 +486,7 @@ struct FuncPtrPass : public ModulePass {
     }
     bool doFinalization(Module &M) override {
         this->lineFuncs.output();
+        //this->propertyManager.output();
 
         return true;
     }
@@ -458,48 +494,73 @@ struct FuncPtrPass : public ModulePass {
     // tools
     bool isLLVMCall(Instruction &I) {
         CallInst *callInst = dyn_cast<CallInst>(&I);
-        bool llvm_dbg = callInst->getCalledValue()->getName().find("llvm.dbg") != std::string::npos;
-        bool llvm_memset = callInst->getCalledValue()->getName().find("llvm.memset") != std::string::npos;
-        return llvm_dbg || llvm_memset;
+        StringRef calledName = callInst->getCalledValue()->getName();
+        bool llvm_dbg = calledName.find("llvm.dbg") != std::string::npos;
+        bool llvm_memset = calledName.find("llvm.memset") != std::string::npos;
+        bool llvm_memcpy = calledName.find("llvm.memcpy") != std::string::npos;
+        return llvm_dbg || llvm_memset || llvm_memcpy;
     }
     bool isFunctionPointer(Value *v) {
         return v->getType()->isPointerTy();
     }
 
     void dealGetElementPtrInst(Value *v) {
-        assert(isa<GetElementPtrInst>(v));
-        GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(v);
-
-        Value *operandValue = getInst->getPointerOperand();
-
         #if IS_DEBUG
         errs() << "=== dealGetElementPtrInst ===\nGetInst:\n";
         v->dump();
         #endif
 
+        assert(isa<GetElementPtrInst>(v));
+
+        GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(v);
+        Pointer *getPtr = pointerManager.getPointerFromValue(v);
+
+        Value *operandValue = getInst->getPointerOperand();
+        Pointer *operandPtr = pointerManager.getPointerFromValue(operandValue);
+        int offset = this->propertyManager.getOffset(v);
+
+        set<Pointer *> rSet;
         // load
         if (isa<LoadInst>(operandValue)) {
-            Pointer *loadPtr = pointerManager.getPointerFromValue(operandValue);
-            set<Pointer *> ptrSet = loadPtr->getPointerSet();
-
             #if IS_DEBUG
-            errs() << "LoadInst:\n";
+            errs() << "Sub LoadInst:\n";
             operandValue->dump();
-            errs() << "Sub Value:\n";
             #endif
+
+            set<Pointer *> ptrSet = operandPtr->getPointerSet();
+
+            // traverse the pointer set
+            // get the sub pointer set with offset
             set<Pointer *>::iterator it;
             for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
-                Value *subValue = (*it)->getValue();
+                Value *owner = (*it)->getValue();
 
                 #if IS_DEBUG
-                subValue->dump();
+                errs() << "owner:\n";
+                owner->dump();
+                errs() << "offset:" << offset << "\n";
+                errs() << "insert:\n";
                 #endif
+
+                set<Pointer *> subSet = this->propertyManager.propertyPointerSet(owner, offset);
+                set<Pointer *>::iterator it1;
+                for (it1 = subSet.begin(); it1 != subSet.end(); ++it1) {
+                    rSet.insert(*it1);
+
+                    #if IS_DEBUG
+                    (*it1)->getValue()->dump();
+                    #endif
+                }
             }
         }
         // struct
         else {
             this->propertyManager.initProperty(v);
+            rSet = this->propertyManager.propertyPointerSet(operandValue, offset);
         }
+
+        // update pointer set
+        getPtr->pointToPointSet(rSet, v);
     }
     /*
     %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
@@ -538,25 +599,15 @@ struct FuncPtrPass : public ModulePass {
         assert(isa<LoadInst>(v));
 
         Value *des = dyn_cast<LoadInst>(v)->getPointerOperand();
+        Pointer *desPtr = pointerManager.getPointerFromValue(des);
         Pointer *loadInstPtr = pointerManager.getPointerFromValue(v);
+        loadInstPtr->copyPointToSet(desPtr, v);
 
         #if IS_DEBUG
-            errs() << "=== dealLoadInst ===\nGetElementPtrInst:\n";
-            des->dump();
-            errs() << "\nLoadInst:\n";
-            v->dump();
-            errs() << "Output:\n";
-            loadInstPtr->output();
+        errs() << "@@@@@@@ Load Output:\n";
+        v->dump();
+        loadInstPtr->output();
         #endif
-
-        if (isa<GetElementPtrInst>(des)) {
-            set<Pointer *> ptrSet = this->propertyManager.propertyPointerSet(des);
-            loadInstPtr->pointToPointSet(ptrSet, v);
-        }
-        else if (isa<BitCastInst>(des)) {
-            Pointer *desPtr = pointerManager.getPointerFromValue(des);
-            loadInstPtr->copyPointToSet(desPtr, v);
-        }
     }
     void dealCallInst(Value *v) {
         CallInst *callInst = dyn_cast<CallInst>(v);
