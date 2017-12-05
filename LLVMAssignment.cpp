@@ -63,7 +63,7 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
-#define IS_DEBUG false
+#define IS_DEBUG true
 
 class Pointer {
     set<Pointer *> pointToSet;
@@ -91,7 +91,7 @@ public:
         Instruction *inst = dyn_cast<Instruction>(iV);
 
         #if IS_DEBUG
-        errs() << "===========\n";
+        errs() << "=== pointToPointer ===\n";
         this->value->dump();
         inst->dump();
         #endif
@@ -307,8 +307,8 @@ class PropertyManager {
             return pSet;
         }
     }
-    void insertExistOwnerPointer(StoreInst *storeInst, Value *getInst, 
-                                Value *source, Value*owner, int offset) {
+    void insertOwnerPointer(StoreInst *storeInst, Value *getInst, 
+                            Value *source, Value*owner, int offset) {
         #if IS_DEBUG
         errs() << "Owner Exist\n";
         #endif
@@ -339,25 +339,6 @@ class PropertyManager {
         // update the set
         this->ownerMap[owner][offset] = newSet;
     }
-    void insertNotExistOwnerPointer(StoreInst *storeInst, Value *getInst, 
-                                    Value *source, Value*owner, int offset) {
-        #if IS_DEBUG
-        errs() << "Owner Not Exist\n";
-        #endif
-                                    
-        // construct a property value set
-        set<Pointer *> propertyValueSet;
-        Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
-        propertyValueSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
-
-        // construct a offset map
-        map<int, set<Pointer *>> offsetMap;
-        offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
-
-        // insert into ownerMap
-        this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
-    }
 public:
     /*
     r_fptr[1] = q_fptr[0];
@@ -366,21 +347,16 @@ public:
     %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
     store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
     */
-    set<Pointer *> getPointerSetFromLoadInst(Value *loadInst) {
-        assert(isa<LoadInst>(loadInst));
-
-        // get getelementptr instruction
-        Value *getInst = dyn_cast<LoadInst>(loadInst)->getPointerOperand();
+    set<Pointer *> propertyPointerSet(Value *getInst) {
+        assert(isa<GetElementPtrInst>(getInst));
 
         // get varaiable, offset
         Value *owner = this->getOwner(getInst);
         int offset = this->getOffset(getInst);
 
         #if IS_DEBUG
-        errs() << "=== getPointerSetFromLoadInst === \nGetElementPtrInst:\n";
+        errs() << "=== propertyPointerSet === \nGetElementPtrInst:\n";
         getInst->dump();
-        errs() << "LoadInst:\n";
-        loadInst->dump();
 
         set<Pointer *> ptrSet = this->pointerSetWithVariableAndOffset(owner, offset);
         errs() << "Set size : " << ptrSet.size() << "\n";
@@ -393,28 +369,44 @@ public:
         // property set
         return this->pointerSetWithVariableAndOffset(owner, offset);
     }
-    void insertPointerFromStoreInst(Value *stInst) {
+    void insertPropertyPointer(Value *getInst, Value *source, Value *stInst) {
+        assert(isa<GetElementPtrInst>(getInst));
         assert(isa<StoreInst>(stInst));
-        StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
 
         #if IS_DEBUG
-        errs() << "=== insertPointerFromStoreInst === \n";
-        errs() << "StoreInst:\n";
-        stInst->dump();
+        errs() << "=== insertPropertyPointer === \n";
+        errs() << "GetELementPtrInst:\n";
+        getInst->dump();
+        errs() << "Source:\n";
+        source->dump();
         #endif
 
         // getelementptr
-        Value *getInst = storeInst->getPointerOperand();
-        Value *source = storeInst->getValueOperand();
         Value *owner = this->getOwner(getInst);
         int offset = this->getOffset(getInst);
 
         // if this value exist in ownerMap
-        if (this->isValueExist(owner))
-            this->insertExistOwnerPointer(storeInst, getInst, source, owner, offset);
-        // not exist
-        else
-            this->insertNotExistOwnerPointer(storeInst, getInst, source, owner, offset);
+        StoreInst *storeInst = dyn_cast<StoreInst>(stInst);
+        this->insertOwnerPointer(storeInst, getInst, source, owner, offset);
+    }
+    void initProperty(Value *getInst) {
+        assert(isa<GetElementPtrInst>(getInst));
+
+        // get owner and offset
+        Value *owner = this->getOwner(getInst);
+        int offset = this->getOffset(getInst);
+
+        if (!this->isValueExist(owner)) {
+            // construct a property value set
+            set<Pointer *> propertyValueSet;
+
+            // construct a offset map
+            map<int, set<Pointer *>> offsetMap;
+            offsetMap.insert(pair<int, set<Pointer *>>(offset, propertyValueSet));
+
+            // insert into ownerMap
+            this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(owner, offsetMap));
+        }
     }
 };
 
@@ -439,6 +431,10 @@ struct FuncPtrPass : public ModulePass {
                     // PHI Instruction
                     if (isa<PHINode>(&I)) {
                         this->dealPHI(&I);
+                    }
+                    // GetElementPtrInst
+                    if (isa<GetElementPtrInst>(&I)) {
+                        this->dealGetElementPtrInst(&I);
                     }
                     // Store Instruction
                     if (isa<StoreInst>(&I)) {
@@ -470,6 +466,41 @@ struct FuncPtrPass : public ModulePass {
         return v->getType()->isPointerTy();
     }
 
+    void dealGetElementPtrInst(Value *v) {
+        assert(isa<GetElementPtrInst>(v));
+        GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(v);
+
+        Value *operandValue = getInst->getPointerOperand();
+
+        #if IS_DEBUG
+        errs() << "=== dealGetElementPtrInst ===\nGetInst:\n";
+        v->dump();
+        #endif
+
+        // load
+        if (isa<LoadInst>(operandValue)) {
+            Pointer *loadPtr = pointerManager.getPointerFromValue(operandValue);
+            set<Pointer *> ptrSet = loadPtr->getPointerSet();
+
+            #if IS_DEBUG
+            errs() << "LoadInst:\n";
+            operandValue->dump();
+            errs() << "Sub Value:\n";
+            #endif
+            set<Pointer *>::iterator it;
+            for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
+                Value *subValue = (*it)->getValue();
+
+                #if IS_DEBUG
+                subValue->dump();
+                #endif
+            }
+        }
+        // struct
+        else {
+            this->propertyManager.initProperty(v);
+        }
+    }
     /*
     %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
     store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
@@ -486,7 +517,7 @@ struct FuncPtrPass : public ModulePass {
         Value *source = storeInst->getValueOperand();
 
         if (isa<GetElementPtrInst>(des))
-            this->propertyManager.insertPointerFromStoreInst(storeInst);
+            this->propertyManager.insertPropertyPointer(des, source, storeInst);
         else if (isa<BitCastInst>(des)) {
             Pointer *desPtr = pointerManager.getPointerFromValue(des);
             Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
@@ -508,22 +539,23 @@ struct FuncPtrPass : public ModulePass {
 
         Value *des = dyn_cast<LoadInst>(v)->getPointerOperand();
         Pointer *loadInstPtr = pointerManager.getPointerFromValue(v);
-        if (isa<GetElementPtrInst>(des)) {
-            set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(v);
-            loadInstPtr->pointToPointSet(ptrSet, v);
 
-            #if IS_DEBUG
+        #if IS_DEBUG
             errs() << "=== dealLoadInst ===\nGetElementPtrInst:\n";
             des->dump();
             errs() << "\nLoadInst:\n";
             v->dump();
             errs() << "Output:\n";
             loadInstPtr->output();
-            #endif
+        #endif
+
+        if (isa<GetElementPtrInst>(des)) {
+            set<Pointer *> ptrSet = this->propertyManager.propertyPointerSet(des);
+            loadInstPtr->pointToPointSet(ptrSet, v);
         }
         else if (isa<BitCastInst>(des)) {
             Pointer *desPtr = pointerManager.getPointerFromValue(des);
-            loadInstPtr->pointToPointSet(desPtr->getPointerSet(), v);
+            loadInstPtr->copyPointToSet(desPtr, v);
         }
     }
     void dealCallInst(Value *v) {
@@ -549,29 +581,14 @@ struct FuncPtrPass : public ModulePass {
         // a certain function
         else if (isa<Function>(calledValue))   
             this->dealCallFunction(callInst, calledValue); 
-        else if (isa<LoadInst>(calledValue))
-            this->dealCallLoadInst(callInst, calledValue);
         // a function pointer, include phi and normal function ptr
         else if (isFunctionPointer(calledValue)) {
             this->dealCallFunctionPointer(callInst, calledValue);
         }
-    }
-    void dealCallLoadInst(Value *call, Value *lInst) {
-        assert(isa<LoadInst>(lInst));
-        Value *subInst = dyn_cast<LoadInst>(lInst)->getPointerOperand();
-
-        if (isa<GetElementPtrInst>(subInst)) {
-            this->dealCallPropertyLoad(call, lInst);
-        }
-        else if (isa<BitCastInst>(subInst)) {
-            this->dealCallFunctionPointer(call, subInst);
-        }
-    }
-    void dealCallPropertyLoad(Value *call, Value *lInst) {
-        set<Pointer *> ptrSet = this->propertyManager.getPointerSetFromLoadInst(lInst);
-
-        Pointer *loadInstPrt = pointerManager.getPointerFromValue(lInst);
-        loadInstPrt->pointToPointSet(ptrSet, lInst);
+        /*
+        else if (isa<LoadInst>(calledValue))
+            this->dealCallLoadInst(callInst, calledValue);
+        */
     }
     void dealCallFunctionPointer(Value *call, Value *fptr) {
         Pointer *funcPtr = pointerManager.getPointerFromValue(fptr);
