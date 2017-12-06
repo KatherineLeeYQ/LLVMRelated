@@ -37,9 +37,11 @@ int moo(char x, int op1, int op2) {
     struct fptr* t_fptr = 0;
 
     if (x == '+') {
+        m_fptr.sptr=&a_fptr;
        goo_ptr = foo;
     } 
     else if (x == '-') {
+        m_fptr.sptr=&s_fptr;
        goo_ptr = clever;
        
     }

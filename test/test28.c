@@ -54,3 +54,5 @@ int moo(char x, int op1, int op2) {
 // 36 : malloc
 // 38 : malloc
 // 47 : clever
+
+// 函数内部通过指针对外部变量的值进行修改

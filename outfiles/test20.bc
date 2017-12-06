@@ -120,35 +120,39 @@ entry:
   br i1 %cmp, label %if.then, label %if.else, !dbg !98
 
 if.then:                                          ; preds = %entry
-  store %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @foo, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !99
-  br label %if.end8, !dbg !101
+  %sptr4 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %m_fptr, i32 0, i32 0, !dbg !99
+  store %struct.fptr* %a_fptr, %struct.fptr** %sptr4, align 8, !dbg !101
+  store %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @foo, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !102
+  br label %if.end10, !dbg !103
 
 if.else:                                          ; preds = %entry
-  %1 = load i8, i8* %x.addr, align 1, !dbg !102
-  %conv4 = sext i8 %1 to i32, !dbg !102
-  %cmp5 = icmp eq i32 %conv4, 45, !dbg !104
-  br i1 %cmp5, label %if.then7, label %if.end, !dbg !105
+  %1 = load i8, i8* %x.addr, align 1, !dbg !104
+  %conv5 = sext i8 %1 to i32, !dbg !104
+  %cmp6 = icmp eq i32 %conv5, 45, !dbg !106
+  br i1 %cmp6, label %if.then8, label %if.end, !dbg !107
 
-if.then7:                                         ; preds = %if.else
-  store %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @clever, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !106
-  br label %if.end, !dbg !108
+if.then8:                                         ; preds = %if.else
+  %sptr9 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %m_fptr, i32 0, i32 0, !dbg !108
+  store %struct.fptr* %s_fptr, %struct.fptr** %sptr9, align 8, !dbg !110
+  store %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)* @clever, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !111
+  br label %if.end, !dbg !112
 
-if.end:                                           ; preds = %if.then7, %if.else
-  br label %if.end8
+if.end:                                           ; preds = %if.then8, %if.else
+  br label %if.end10
 
-if.end8:                                          ; preds = %if.end, %if.then
-  %2 = load %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)*, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !109
-  %3 = load i32, i32* %op1.addr, align 4, !dbg !110
-  %4 = load i32, i32* %op2.addr, align 4, !dbg !111
-  %call = call %struct.fptr* %2(i32 %3, i32 %4, %struct.fsptr* %m_fptr, %struct.fsptr* %n_fptr), !dbg !109
-  store %struct.fptr* %call, %struct.fptr** %t_fptr, align 8, !dbg !112
-  %5 = load %struct.fptr*, %struct.fptr** %t_fptr, align 8, !dbg !113
-  %p_fptr9 = getelementptr inbounds %struct.fptr, %struct.fptr* %5, i32 0, i32 0, !dbg !114
-  %6 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr9, align 8, !dbg !114
-  %7 = load i32, i32* %op1.addr, align 4, !dbg !115
-  %8 = load i32, i32* %op2.addr, align 4, !dbg !116
-  %call10 = call i32 %6(i32 %7, i32 %8), !dbg !113
-  ret i32 0, !dbg !117
+if.end10:                                         ; preds = %if.end, %if.then
+  %2 = load %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)*, %struct.fptr* (i32, i32, %struct.fsptr*, %struct.fsptr*)** %goo_ptr, align 8, !dbg !113
+  %3 = load i32, i32* %op1.addr, align 4, !dbg !114
+  %4 = load i32, i32* %op2.addr, align 4, !dbg !115
+  %call = call %struct.fptr* %2(i32 %3, i32 %4, %struct.fsptr* %m_fptr, %struct.fsptr* %n_fptr), !dbg !113
+  store %struct.fptr* %call, %struct.fptr** %t_fptr, align 8, !dbg !116
+  %5 = load %struct.fptr*, %struct.fptr** %t_fptr, align 8, !dbg !117
+  %p_fptr11 = getelementptr inbounds %struct.fptr, %struct.fptr* %5, i32 0, i32 0, !dbg !118
+  %6 = load i32 (i32, i32)*, i32 (i32, i32)** %p_fptr11, align 8, !dbg !118
+  %7 = load i32, i32* %op1.addr, align 4, !dbg !119
+  %8 = load i32, i32* %op2.addr, align 4, !dbg !120
+  %call12 = call i32 %6(i32 %7, i32 %8), !dbg !117
+  ret i32 0, !dbg !121
 }
 
 attributes #0 = { noinline nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
@@ -259,20 +263,24 @@ attributes #1 = { nounwind readnone speculatable }
 !98 = !DILocation(line: 39, column: 9, scope: !64)
 !99 = !DILocation(line: 40, column: 16, scope: !100)
 !100 = distinct !DILexicalBlock(scope: !96, file: !1, line: 39, column: 19)
-!101 = !DILocation(line: 41, column: 5, scope: !100)
-!102 = !DILocation(line: 42, column: 14, scope: !103)
-!103 = distinct !DILexicalBlock(scope: !96, file: !1, line: 42, column: 14)
-!104 = !DILocation(line: 42, column: 16, scope: !103)
-!105 = !DILocation(line: 42, column: 14, scope: !96)
-!106 = !DILocation(line: 43, column: 16, scope: !107)
-!107 = distinct !DILexicalBlock(scope: !103, file: !1, line: 42, column: 24)
-!108 = !DILocation(line: 45, column: 5, scope: !107)
-!109 = !DILocation(line: 47, column: 14, scope: !64)
-!110 = !DILocation(line: 47, column: 22, scope: !64)
-!111 = !DILocation(line: 47, column: 27, scope: !64)
-!112 = !DILocation(line: 47, column: 12, scope: !64)
-!113 = !DILocation(line: 48, column: 5, scope: !64)
-!114 = !DILocation(line: 48, column: 13, scope: !64)
-!115 = !DILocation(line: 48, column: 20, scope: !64)
-!116 = !DILocation(line: 48, column: 25, scope: !64)
+!101 = !DILocation(line: 40, column: 20, scope: !100)
+!102 = !DILocation(line: 41, column: 16, scope: !100)
+!103 = !DILocation(line: 42, column: 5, scope: !100)
+!104 = !DILocation(line: 43, column: 14, scope: !105)
+!105 = distinct !DILexicalBlock(scope: !96, file: !1, line: 43, column: 14)
+!106 = !DILocation(line: 43, column: 16, scope: !105)
+!107 = !DILocation(line: 43, column: 14, scope: !96)
+!108 = !DILocation(line: 44, column: 16, scope: !109)
+!109 = distinct !DILexicalBlock(scope: !105, file: !1, line: 43, column: 24)
+!110 = !DILocation(line: 44, column: 20, scope: !109)
+!111 = !DILocation(line: 45, column: 16, scope: !109)
+!112 = !DILocation(line: 47, column: 5, scope: !109)
+!113 = !DILocation(line: 49, column: 14, scope: !64)
+!114 = !DILocation(line: 49, column: 22, scope: !64)
+!115 = !DILocation(line: 49, column: 27, scope: !64)
+!116 = !DILocation(line: 49, column: 12, scope: !64)
 !117 = !DILocation(line: 50, column: 5, scope: !64)
+!118 = !DILocation(line: 50, column: 13, scope: !64)
+!119 = !DILocation(line: 50, column: 20, scope: !64)
+!120 = !DILocation(line: 50, column: 25, scope: !64)
+!121 = !DILocation(line: 52, column: 5, scope: !64)
