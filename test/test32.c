@@ -19,22 +19,22 @@ int minus(int a, int b) {
    return a-b;
 }
 
-struct fptr * foo(int a, int b, struct wfsptr * a_fptr, struct wfsptr * b_fptr) {
+struct fptr * foo(int a, int b, struct wfsptr * i_fptr, struct wfsptr * j_fptr) {
    if(a>0 && b<0)
    {
-    struct fsptr * temp=a_fptr->wfptr;
-    a_fptr->wfptr->sptr = b_fptr->wfptr->sptr;
-    b_fptr->wfptr->sptr =temp->sptr;
-    return a_fptr->wfptr->sptr;
+    struct fsptr * temp=i_fptr->wfptr;
+    i_fptr->wfptr->sptr = j_fptr->wfptr->sptr;
+    j_fptr->wfptr->sptr =temp->sptr;
+    return i_fptr->wfptr->sptr;
    }
-   return b_fptr->wfptr->sptr;
+   return j_fptr->wfptr->sptr;
 } 
 
-struct fptr * clever(int a, int b, struct fsptr * a_fptr, struct fsptr * b_fptr ) {
+struct fptr * clever(int a, int b, struct fsptr * x_fptr, struct fsptr * y_fptr ) {
    struct wfsptr t1_fptr;
-   t1_fptr.wfptr=a_fptr;
+   t1_fptr.wfptr=x_fptr;
    struct wfsptr t2_fptr;
-   t2_fptr.wfptr=b_fptr;
+   t2_fptr.wfptr=y_fptr;
    return foo(a,b,&t1_fptr,&t2_fptr);
 }
 

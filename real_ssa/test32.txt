@@ -43,18 +43,21 @@ if.then:                                          ; preds = %land.lhs.true
   call void @llvm.dbg.value(metadata %struct.fsptr* %0, i64 0, metadata !56, metadata !12), !dbg !57
   %wfptr2 = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %b_fptr, i32 0, i32 0, !dbg !58
   %1 = load %struct.fsptr*, %struct.fsptr** %wfptr2, align 8, !dbg !58
+  
   %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %1, i32 0, i32 0, !dbg !59
   %2 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !59
   %wfptr3 = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %a_fptr, i32 0, i32 0, !dbg !60
   %3 = load %struct.fsptr*, %struct.fsptr** %wfptr3, align 8, !dbg !60
   %sptr4 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %3, i32 0, i32 0, !dbg !61
   store %struct.fptr* %2, %struct.fptr** %sptr4, align 8, !dbg !62
+  
   %sptr5 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %0, i32 0, i32 0, !dbg !63
   %4 = load %struct.fptr*, %struct.fptr** %sptr5, align 8, !dbg !63
   %wfptr6 = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %b_fptr, i32 0, i32 0, !dbg !64
   %5 = load %struct.fsptr*, %struct.fsptr** %wfptr6, align 8, !dbg !64
   %sptr7 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %5, i32 0, i32 0, !dbg !65
   store %struct.fptr* %4, %struct.fptr** %sptr7, align 8, !dbg !66
+  
   %wfptr8 = getelementptr inbounds %struct.wfsptr, %struct.wfsptr* %a_fptr, i32 0, i32 0, !dbg !67
   %6 = load %struct.fsptr*, %struct.fsptr** %wfptr8, align 8, !dbg !67
   %sptr9 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %6, i32 0, i32 0, !dbg !68
