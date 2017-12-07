@@ -47,6 +47,8 @@ llvm/Transforms/Scalar.h
 -
 Liveness.h
 /home/katherine/CompileClass/Assignment_3/Liveness.h
+llvm/IR/Type.h
+/home/katherine/CompileClass/Assignment_3/llvm/IR/Type.h
 llvm/IR/Function.h
 /home/katherine/CompileClass/Assignment_3/llvm/IR/Function.h
 llvm/IR/DebugLoc.h

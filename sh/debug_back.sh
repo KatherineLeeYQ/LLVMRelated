@@ -40,6 +40,10 @@ echo "=== 18 ==="
 ./bin/assignment ./outfiles/test18.bc
 echo "=== 19 ==="
 ./bin/assignment ./outfiles/test19.bc
+echo "=== 20 ==="
+./bin/assignment ./outfiles/test20.bc
+echo "=== 21 ==="
+./bin/assignment ./outfiles/test21.bc
 echo "=== 22 ==="
 ./bin/assignment ./outfiles/test22.bc
 echo "=== 23 ==="

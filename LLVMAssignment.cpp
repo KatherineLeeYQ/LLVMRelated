@@ -32,6 +32,7 @@
 
 #include <llvm/Transforms/Scalar.h>
 #include "Liveness.h"
+#include "llvm/IR/Type.h"
 #include "llvm/IR/Function.h"
 #include <llvm/IR/DebugLoc.h>
 #include <llvm/IR/DebugInfoMetadata.h>
@@ -353,16 +354,19 @@ public:
         assert(isa<GetElementPtrInst>(getInst));
         GetElementPtrInst *getInstr = dyn_cast<GetElementPtrInst>(getInst);
 
+        int numINdices = getInstr->getNumIndices();
+        int count = 0;
+    
         #if IS_DEBUG
         errs() << "=== Get Offset ===\n";
         getInstr->dump();
+        errs() << "NumDices: " << numINdices << "\n";
         #endif
 
-        int count = 0;
         for (Use *u = getInstr->idx_begin(); u != getInstr->idx_end(); ++u) {
             ++count;
 
-            if (count == 2 && isa<ConstantInt>(u->get())) {
+            if ((count == numINdices) && isa<ConstantInt>(u->get())) {
                 ConstantInt *c = dyn_cast<ConstantInt>(u->get());
 
                 #if IS_DEBUG
@@ -573,6 +577,12 @@ struct FuncPtrPass : public ModulePass {
     bool isPointer(Value *v) {
         return v->getType()->isPointerTy();
     }
+    bool isArrayPointer(Value *v) {
+        Type *ty = v->getType();
+        if (ty->isPointerTy() && ty->getPointerElementType()->isArrayTy())
+            return true;
+        return false;
+    }
     bool isNULL(Value *v) {
         return v->getName() == "";
     }
@@ -619,22 +629,21 @@ struct FuncPtrPass : public ModulePass {
         #endif
 
         assert(isa<GetElementPtrInst>(v));
-
         GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(v);
         Pointer *getPtr = pointerManager.getPointerFromValue(v);
 
         Value *operandValue = getInst->getPointerOperand();
-        Pointer *operandPtr = pointerManager.getPointerFromValue(operandValue);
         int offset = this->propertyManager.getOffset(v);
+        set<Pointer *> rSet;   
 
-        set<Pointer *> rSet;
-        // load
-        if (isa<LoadInst>(operandValue)) {
+        // load or call(the return value of a call)
+        if (isa<LoadInst>(operandValue) || isa<CallInst>(operandValue)) {
             #if IS_DEBUG
             errs() << "Sub LoadInst:\n";
             operandValue->dump();
             #endif
 
+            Pointer *operandPtr = pointerManager.getPointerFromValue(operandValue);
             set<Pointer *> ptrSet = operandPtr->getPointerSet();
 
             // traverse the pointer set
@@ -651,14 +660,7 @@ struct FuncPtrPass : public ModulePass {
                 #endif
 
                 set<Pointer *> subSet = this->propertyManager.propertyPointerSet(owner, offset);
-                set<Pointer *>::iterator it1;
-                for (it1 = subSet.begin(); it1 != subSet.end(); ++it1) {
-                    rSet.insert(*it1);
-
-                    #if IS_DEBUG
-                    (*it1)->getValue()->dump();
-                    #endif
-                }
+                rSet.insert(subSet.begin(), subSet.end());
             }
         }
         // struct: scope variable, argument
@@ -762,6 +764,11 @@ struct FuncPtrPass : public ModulePass {
         Pointer *calledPtr = pointerManager.getPointerFromValue(calledValue);
         lineFuncs.insertLineFunctionPtr(line, calledPtr);
 
+        #if IS_DEBUG
+        calledValue->dump();
+        calledPtr->output();
+        #endif
+
         // deal all kinds of call
         this->dealCallKind(callInst);
     }
@@ -819,6 +826,13 @@ struct FuncPtrPass : public ModulePass {
             // bind the callinst and the return value
             Pointer *callPtr = pointerManager.getPointerFromValue(call);
             callPtr->copyPointToSet(retPtr, call);
+
+            #if IS_DEBUG
+            errs() << "ret set out:\n";
+            retPtr->output();
+            errs() << "call set out:\n";
+            callPtr->output();
+            #endif
         }
     }
     // block means this bindation has a block constrain
@@ -854,11 +868,13 @@ struct FuncPtrPass : public ModulePass {
 
         #if IS_DEBUG
         errs() << "\n### bindFuncPtrParam ###\n";
+        errs() << "realV:\n";
+        realV->dump();
         errs() << "*** propertyManager output ***\n";
         this->propertyManager.output();
         #endif
 
-        // struct argument
+        // struct* type
         if (this->propertyManager.isOwnerExist(realV)) {
             #if IS_DEBUG
             errs() << "realV Exist in propertyManager!\n";
@@ -869,7 +885,14 @@ struct FuncPtrPass : public ModulePass {
 
             this->propertyManager.insertOffsetMap(arg, realV);
         }
-        // normal argument: int, int *(int ...)
+        // int (*arr[x])
+        else if (isa<GetElementPtrInst>(realV)) {
+            GetElementPtrInst *getInst = dyn_cast<GetElementPtrInst>(realV);
+            Value *operandValue = getInst->getPointerOperand();
+            if (this->isArrayPointer(operandValue))
+                this->propertyManager.insertOffsetMap(arg, operandValue);
+        }
+        // normal type: int, int *(int ...), struct(load instruction) 
         else {
             #if IS_DEBUG
             errs() << "realV Ptr set:\n";

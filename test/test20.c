@@ -16,7 +16,6 @@ int minus(int a, int b) {
 }
 
 struct fptr * foo(int a, int b, struct fsptr * i_fptr, struct fsptr * j_fptr) {
-    i_fptr->sptr = j_fptr->sptr;
    return i_fptr->sptr;
 }
 
