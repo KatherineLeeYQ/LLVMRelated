@@ -90,23 +90,35 @@ public:
     // point & delete
     void pointToPointer(Pointer *ptr, Value *iV) {
         assert(isa<Instruction>(iV));
-        Instruction *inst = dyn_cast<Instruction>(iV);
 
         #if IS_DEBUG
         errs() << "=== pointToPointer ===\n";
         this->value->dump();
-        inst->dump();
+        iV->dump();
         #endif
+
+        Instruction *inst = dyn_cast<Instruction>(iV);
+        BasicBlock *block = inst->getParent();
+        Function *func = block->getParent();
         
         set<Pointer *>::iterator it;
         for (it = this->pointToSet.begin(); it != this->pointToSet.end(); ++it) {
             Value *oldInstV = this->blockMap[*it];
             assert(isa<Instruction>(oldInstV));
             Instruction *oldInst = dyn_cast<Instruction>(oldInstV);
+            BasicBlock *oldBlock = oldInst->getParent();
+            Function *oldFunc = oldBlock->getParent();
 
             // only store inst erase
-            // if in the same basic block
-            if (isa<StoreInst>(inst) && inst->getParent() == oldInst->getParent()) {
+            // if in the same basic block, erase the old values
+            // if in different functions, erase the old values
+            #if IS_DEBUG
+            errs() << "\n### determine erase!\n";
+            iV->dump();
+            errs() << "func name:" << func->getName() << "\n";
+            errs() << "old func name:" << oldFunc->getName() << "\n";
+            #endif
+            if (isa<StoreInst>(inst) && (block == oldBlock || func != oldFunc)) {
                 this->pointToSet.erase(*it);
                 
                 #if IS_DEBUG
@@ -175,9 +187,9 @@ public:
 
     // !TODO delete
     void output() {
-        set<Pointer *> ptrSet = this->getBasePointerSet();
+        //set<Pointer *> ptrSet = this->getBasePointerSet();
         set<Pointer *>::iterator it;
-        for (it = ptrSet.begin(); it != ptrSet.end(); ++it) {
+        for (it = this->pointToSet.begin(); it != this->pointToSet.end(); ++it) {
             errs() << (*it)->getValue()->getName() << " + ";
         }
         errs() << "\n";
@@ -278,6 +290,7 @@ class PropertyManager {
 
         // basic block of the new source
         BasicBlock *block = dyn_cast<Instruction>(storeInst)->getParent();
+        Function *func = block->getParent();
 
         // get the offset map and the property value set
         set<Pointer *> originSet = this->ownerMap[owner][offset];
@@ -286,20 +299,36 @@ class PropertyManager {
         for (it = originSet.begin(); it != originSet.end(); ++it) {
             Value *v = this->ptrMap[(*it)];
             assert(isa<Instruction>(v));
-            BasicBlock *b = dyn_cast<Instruction>(v)->getParent();
+            BasicBlock *oldBlock = dyn_cast<Instruction>(v)->getParent();
+            Function *oldFunc = oldBlock->getParent();
 
-            // delete the old pointer in the same basic block
-            // delete the old pointer that has the same value // !TODO
-            if (b != block && (*it)->getValue() != source)
+            if (oldFunc != func)
+                break;
+
+            // 1.delete the old pointer in the same basic block
+            // 2.delete the old pointer that has the same value
+            // 3.when it comes to being in different functions
+            //   delete the old values
+            if (oldBlock != block && (*it)->getValue() != source)
                 newSet.insert(*it);
         }
 
         // insert new value into property value set
         Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
-        newSet.insert(sourcePtr);
-        this->generatePtrMap(sourcePtr, storeInst);
+        if (isa<LoadInst>(source)) {
+            #if IS_DEBUG
+            errs() << "insert load value!";
+            sourcePtr->output();
+            #endif
 
-        // update the set
+            set<Pointer *> sourcePtrSet = sourcePtr->getPointerSet();
+            newSet.insert(sourcePtrSet.begin(), sourcePtrSet.end());
+        }
+        else {
+            newSet.insert(sourcePtr);
+            this->generatePtrMap(sourcePtr, storeInst);
+        }
+
         #if IS_DEBUG
         Pointer *ownerPtr = pointerManager.getPointerFromValue(owner);
         errs() << "owner:\n";
@@ -309,6 +338,7 @@ class PropertyManager {
         storeInst->dump();
         #endif
 
+        // update the set
         this->ownerMap[owner][offset] = newSet;
     }
 public:
@@ -350,17 +380,13 @@ public:
             map<int, set<Pointer *>> offsetMap = this->ownerMap[source];
 
             #if IS_DEBUG
-            errs() << "source Exist:\n";
-            source->dump();
+            errs() << "@ insertOffsetMap @\n";
             errs() << "source map size: " << offsetMap.size() << "\n";
+            errs() << "des:\n";
+            des->dump();
             #endif
 
             if (this->isOwnerExist(des)) {
-                #if IS_DEBUG
-                errs() << "des Exist!\n";
-                des->dump();
-                #endif
-
                 map<int, set<Pointer *>> oldMap = this->ownerMap[source];
                 map<int, set<Pointer *>>::iterator it;
                 for (it = oldMap.begin(); it != oldMap.end(); ++it) {
@@ -375,11 +401,6 @@ public:
                 this->ownerMap[des] = offsetMap;
             }
             else {
-                #if IS_DEBUG
-                errs() << "des not Exist!\n";
-                des->dump();
-                #endif
-
                 this->ownerMap.insert(pair<Value *, map<int, set<Pointer *>>>(des, offsetMap));
             }
         }
@@ -419,25 +440,36 @@ public:
         errs() << "=== insertPropertyPointer === \n";
         errs() << "GetELementPtrInst:\n";
         getInst->dump();
+        errs() << "*** propertyManager output ***\n";
+        this->output();
         #endif
-
-        Pointer *getInstPtr = pointerManager.getPointerFromValue(getInst);
-        set<Pointer *> getPtrSet = getInstPtr->getPointerSet();
 
         // getelementptr
         Value *owner = this->getOwner(getInst);
         int offset = this->getOffset(getInst);
 
-        if (isa<LoadInst>(owner)) {
-            #if IS_DEBUG
-            errs() << "Owner is LoadInst:\n";
-            #endif
+        Pointer *ownerPtr = pointerManager.getPointerFromValue(owner);
+        set<Pointer *> ownerPtrSet = ownerPtr->getPointerSet();
 
+        #if IS_DEBUG
+        errs() << "Owner:\n";
+        owner->dump();
+        owPtr->output();
+        errs() << "Offset: " << offset << "\n";
+        errs() << "Source:\n";
+        source->dump();
+        #endif
+
+        // getelementptr ... <LoadInst> offset
+        if (isa<LoadInst>(owner)) {
             set<Pointer *>::iterator it;
-            for (it = getPtrSet.begin(); it != getPtrSet.end(); ++it) {
+            for (it = ownerPtrSet.begin(); it != ownerPtrSet.end(); ++it) {
                 Value *newOwner = (*it)->getValue();//struct fptr
 
                 #if IS_DEBUG
+                errs() << "&&&\n";
+                storeInst->dump();
+                owner->dump();
                 errs() << "SubValue:\n";
                 newOwner->dump();
                 #endif
@@ -445,9 +477,8 @@ public:
                 this->insertOwnerPointer(newOwner, offset, source, storeInst);
             }
         }
-        // struct
+        // getelementptr ... <struct> offset
         else {
-            // if this value exist in ownerMap
             this->insertOwnerPointer(owner, offset, source, storeInst);
         }
     }
@@ -508,7 +539,18 @@ struct FuncPtrPass : public ModulePass {
     bool runOnModule(Module &M) override {
         //M.dump();
         for (Function &F : M) {
-            this->dealInstructionsInFunction(F);
+            bool isDealFunction = true;
+            Argument *arg = (&F)->arg_begin();  // Argument *
+            while (arg != (&F)->arg_end()) {
+                if (this->isPointer(arg)) {
+                    isDealFunction = false;
+                    break;
+                }
+                ++arg;
+            }
+
+            if (isDealFunction)
+                this->dealInstructionsInFunction(F);
         }
         return false;
     }
@@ -621,20 +663,38 @@ struct FuncPtrPass : public ModulePass {
         }
         // struct: scope variable, argument
         else {
-            this->propertyManager.initProperty(v);
+            if (!this->propertyManager.isOwnerExist(operandValue))
+                this->propertyManager.initProperty(v);
             rSet = this->propertyManager.propertyPointerSet(operandValue, offset);
         }
 
         // update pointer set
         getPtr->pointToPointSet(rSet, v);
+
+        #if IS_DEBUG
+        getPtr->output();
+        #endif
     }
     /*
+    【1】getelementptr
     %arrayidx13 = getelementptr inbounds [2 x i32 (i32, i32)*], [2 x i32 (i32, i32)*]* %r_fptr, i64 0, i64 1, !dbg !79
     store i32 (i32, i32)* %1, i32 (i32, i32)** %arrayidx13, align 8, !dbg !80
 
+    %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %j_fptr, i32 0, i32 0, !dbg !45
+    %0 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !45
+    %sptr1 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %i_fptr, i32 0, i32 0, !dbg !46
+    store %struct.fptr* %0, %struct.fptr** %sptr1, align 8, !dbg !47
+
+    【2】bitcast
     %call = call noalias i8* @malloc(i64 8) #3, !dbg !71
     %0 = bitcast i8* %call to i32 (i32, i32)**, !dbg !72
     store i32 (i32, i32)* @plus, i32 (i32, i32)** %0, align 8, !dbg !79
+
+    【3】normal value
+    %0 = load i32 (i32, i32)*, i32 (i32, i32)** %a_fptr, align 8, !dbg !51
+    %1 = load i32 (i32, i32)*, i32 (i32, i32)** %b_fptr, align 8, !dbg !54
+    store i32 (i32, i32)* %1, i32 (i32, i32)** %a_fptr, align 8, !dbg !55
+    store i32 (i32, i32)* %0, i32 (i32, i32)** %b_fptr, align 8, !dbg !56
     */
     void dealStoreInst(Value *v) {
         assert(isa<StoreInst>(v));
@@ -643,13 +703,29 @@ struct FuncPtrPass : public ModulePass {
         Value *des = storeInst->getPointerOperand();
         Value *source = storeInst->getValueOperand();
 
-        if (isa<GetElementPtrInst>(des))
+        // 1
+        if (isa<GetElementPtrInst>(des)) {
+            #if IS_DEBUG
+            Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
+            errs() << "Source:\n";
+            source->dump();
+            sourcePtr->output();
+            #endif
             this->propertyManager.insertPropertyPointer(des, source, storeInst);
-        else if (isa<BitCastInst>(des)) {
+        }
+        // 2 3
+        else /*if (isa<BitCastInst>(des))*/ {
             Pointer *desPtr = pointerManager.getPointerFromValue(des);
             Pointer *sourcePtr = pointerManager.getPointerFromValue(source);
             desPtr->pointToPointer(sourcePtr, v);
         }
+
+        #if IS_DEBUG
+        errs() << "After StoreInst\n";
+        storeInst->dump();
+        errs() << "*** propertyManager output ***\n";
+        this->propertyManager.output();
+        #endif
     }
     /*
     %arrayidx12 = getelementptr inbounds [1 x i32 (i32, i32)*], [1 x i32 (i32, i32)*]* %q_fptr, i64 0, i64 0, !dbg !78
@@ -771,16 +847,18 @@ struct FuncPtrPass : public ModulePass {
             ++op;
             ++arg;
         }
-
-        #if IS_DEBUG
-        errs() << "*** propertyManager output: \n";
-        this->propertyManager.output();
-        #endif
     }
     void bindFuncPtrParam(Value *call, Argument *arg, Value *realV) {
         Pointer *argPtr = pointerManager.getPointerFromValue(arg);
         Pointer *realVPtr = pointerManager.getPointerFromValue(realV);
 
+        #if IS_DEBUG
+        errs() << "\n### bindFuncPtrParam ###\n";
+        errs() << "*** propertyManager output ***\n";
+        this->propertyManager.output();
+        #endif
+
+        // struct argument
         if (this->propertyManager.isOwnerExist(realV)) {
             #if IS_DEBUG
             errs() << "realV Exist in propertyManager!\n";
@@ -791,6 +869,7 @@ struct FuncPtrPass : public ModulePass {
 
             this->propertyManager.insertOffsetMap(arg, realV);
         }
+        // normal argument: int, int *(int ...)
         else {
             #if IS_DEBUG
             errs() << "realV Ptr set:\n";
