@@ -30,5 +30,3 @@ int moo(char x, int op1, int op2) {
 
 // 11 : plus, minus
 // 27 : clever
-
-// 双重指针， 降级之后， 作为实参传入函数中， 调用

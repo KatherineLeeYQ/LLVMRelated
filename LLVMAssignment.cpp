@@ -66,7 +66,7 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
-#define IS_DEBUG false
+#define IS_DEBUG true
 
 class Pointer {
     set<Pointer *> pointToSet;
@@ -332,7 +332,7 @@ class PropertyManager {
 
         #if IS_DEBUG
         Pointer *ownerPtr = pointerManager.getPointerFromValue(owner);
-        errs() << "owner:\n";
+        errs() << "_owner:\n";
         owner->dump();
         errs() << "source:\n";
         source->dump();
@@ -456,9 +456,9 @@ public:
         set<Pointer *> ownerPtrSet = ownerPtr->getPointerSet();
 
         #if IS_DEBUG
-        errs() << "Owner:\n";
+        errs() << "__Owner:\n";
         owner->dump();
-        owPtr->output();
+        ownerPtr->output();
         errs() << "Offset: " << offset << "\n";
         errs() << "Source:\n";
         source->dump();
@@ -511,7 +511,7 @@ public:
         errs() << "【Output begin】\n";
         map<Value *, map<int, set<Pointer *>>>::iterator it1;
         for (it1 = this->ownerMap.begin(); it1 != this->ownerMap.end(); ++it1) {
-            errs() << "Owner:\n";
+            errs() << "___Owner:\n";
             it1->first->dump();
 
             map<int, set<Pointer *>> m = it1->second;
@@ -560,7 +560,7 @@ struct FuncPtrPass : public ModulePass {
     }
     bool doFinalization(Module &M) override {
         this->lineFuncs.output();
-        //this->propertyManager.output();
+        this->propertyManager.output();
 
         return true;
     }
@@ -653,7 +653,7 @@ struct FuncPtrPass : public ModulePass {
                 Value *owner = (*it)->getValue();
 
                 #if IS_DEBUG
-                errs() << "owner:\n";
+                errs() << "____owner:\n";
                 owner->dump();
                 errs() << "offset:" << offset << "\n";
                 errs() << "insert:\n";

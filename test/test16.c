@@ -39,5 +39,3 @@ int moo(char x, int op1, int op2) {
 /// 17 : plus
 /// 24 : malloc
 /// 32 : clever 
-
-// 双重指针， 不降级， 作为实参传入函数， 参数降级， 再作为实参传入函数， 调用其返回值

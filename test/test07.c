@@ -16,8 +16,8 @@ void foo(int x)
 	if(x>1)
 	{
 		a_fptr.p_fptr=plus;
-		x=a_fptr.p_fptr(1,x);
-		a_fptr.p_fptr=minus;
+		 x=a_fptr.p_fptr(1,x);
+		 a_fptr.p_fptr=minus;
 	}else
 	{
 		a_fptr.p_fptr=minus;

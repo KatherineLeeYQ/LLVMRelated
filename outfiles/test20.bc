@@ -40,42 +40,42 @@ entry:
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
-define %struct.fptr* @foo(i32 %a, i32 %b, %struct.fsptr* %i_fptr, %struct.fsptr* %j_fptr) #0 !dbg !29 {
+define %struct.fptr* @foo(i32 %a, i32 %b, %struct.fsptr* %a_fptr, %struct.fsptr* %b_fptr) #0 !dbg !29 {
 entry:
   %a.addr = alloca i32, align 4
   %b.addr = alloca i32, align 4
-  %i_fptr.addr = alloca %struct.fsptr*, align 8
-  %j_fptr.addr = alloca %struct.fsptr*, align 8
+  %a_fptr.addr = alloca %struct.fsptr*, align 8
+  %b_fptr.addr = alloca %struct.fsptr*, align 8
   store i32 %a, i32* %a.addr, align 4
   call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !41, metadata !12), !dbg !42
   store i32 %b, i32* %b.addr, align 4
   call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !43, metadata !12), !dbg !44
-  store %struct.fsptr* %i_fptr, %struct.fsptr** %i_fptr.addr, align 8
-  call void @llvm.dbg.declare(metadata %struct.fsptr** %i_fptr.addr, metadata !45, metadata !12), !dbg !46
-  store %struct.fsptr* %j_fptr, %struct.fsptr** %j_fptr.addr, align 8
-  call void @llvm.dbg.declare(metadata %struct.fsptr** %j_fptr.addr, metadata !47, metadata !12), !dbg !48
-  %0 = load %struct.fsptr*, %struct.fsptr** %i_fptr.addr, align 8, !dbg !49
+  store %struct.fsptr* %a_fptr, %struct.fsptr** %a_fptr.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.fsptr** %a_fptr.addr, metadata !45, metadata !12), !dbg !46
+  store %struct.fsptr* %b_fptr, %struct.fsptr** %b_fptr.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.fsptr** %b_fptr.addr, metadata !47, metadata !12), !dbg !48
+  %0 = load %struct.fsptr*, %struct.fsptr** %a_fptr.addr, align 8, !dbg !49
   %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %0, i32 0, i32 0, !dbg !50
   %1 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !50
   ret %struct.fptr* %1, !dbg !51
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
-define %struct.fptr* @clever(i32 %a, i32 %b, %struct.fsptr* %x_fptr, %struct.fsptr* %y_fptr) #0 !dbg !52 {
+define %struct.fptr* @clever(i32 %a, i32 %b, %struct.fsptr* %a_fptr, %struct.fsptr* %b_fptr) #0 !dbg !52 {
 entry:
   %a.addr = alloca i32, align 4
   %b.addr = alloca i32, align 4
-  %x_fptr.addr = alloca %struct.fsptr*, align 8
-  %y_fptr.addr = alloca %struct.fsptr*, align 8
+  %a_fptr.addr = alloca %struct.fsptr*, align 8
+  %b_fptr.addr = alloca %struct.fsptr*, align 8
   store i32 %a, i32* %a.addr, align 4
   call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !53, metadata !12), !dbg !54
   store i32 %b, i32* %b.addr, align 4
   call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !55, metadata !12), !dbg !56
-  store %struct.fsptr* %x_fptr, %struct.fsptr** %x_fptr.addr, align 8
-  call void @llvm.dbg.declare(metadata %struct.fsptr** %x_fptr.addr, metadata !57, metadata !12), !dbg !58
-  store %struct.fsptr* %y_fptr, %struct.fsptr** %y_fptr.addr, align 8
-  call void @llvm.dbg.declare(metadata %struct.fsptr** %y_fptr.addr, metadata !59, metadata !12), !dbg !60
-  %0 = load %struct.fsptr*, %struct.fsptr** %y_fptr.addr, align 8, !dbg !61
+  store %struct.fsptr* %a_fptr, %struct.fsptr** %a_fptr.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.fsptr** %a_fptr.addr, metadata !57, metadata !12), !dbg !58
+  store %struct.fsptr* %b_fptr, %struct.fsptr** %b_fptr.addr, align 8
+  call void @llvm.dbg.declare(metadata %struct.fsptr** %b_fptr.addr, metadata !59, metadata !12), !dbg !60
+  %0 = load %struct.fsptr*, %struct.fsptr** %b_fptr.addr, align 8, !dbg !61
   %sptr = getelementptr inbounds %struct.fsptr, %struct.fsptr* %0, i32 0, i32 0, !dbg !62
   %1 = load %struct.fptr*, %struct.fptr** %sptr, align 8, !dbg !62
   ret %struct.fptr* %1, !dbg !63
@@ -203,9 +203,9 @@ attributes #1 = { nounwind readnone speculatable }
 !42 = !DILocation(line: 18, column: 23, scope: !29)
 !43 = !DILocalVariable(name: "b", arg: 2, scope: !29, file: !1, line: 18, type: !10)
 !44 = !DILocation(line: 18, column: 30, scope: !29)
-!45 = !DILocalVariable(name: "i_fptr", arg: 3, scope: !29, file: !1, line: 18, type: !37)
+!45 = !DILocalVariable(name: "a_fptr", arg: 3, scope: !29, file: !1, line: 18, type: !37)
 !46 = !DILocation(line: 18, column: 48, scope: !29)
-!47 = !DILocalVariable(name: "j_fptr", arg: 4, scope: !29, file: !1, line: 18, type: !37)
+!47 = !DILocalVariable(name: "b_fptr", arg: 4, scope: !29, file: !1, line: 18, type: !37)
 !48 = !DILocation(line: 18, column: 71, scope: !29)
 !49 = !DILocation(line: 19, column: 11, scope: !29)
 !50 = !DILocation(line: 19, column: 19, scope: !29)
@@ -215,9 +215,9 @@ attributes #1 = { nounwind readnone speculatable }
 !54 = !DILocation(line: 22, column: 26, scope: !52)
 !55 = !DILocalVariable(name: "b", arg: 2, scope: !52, file: !1, line: 22, type: !10)
 !56 = !DILocation(line: 22, column: 33, scope: !52)
-!57 = !DILocalVariable(name: "x_fptr", arg: 3, scope: !52, file: !1, line: 22, type: !37)
+!57 = !DILocalVariable(name: "a_fptr", arg: 3, scope: !52, file: !1, line: 22, type: !37)
 !58 = !DILocation(line: 22, column: 51, scope: !52)
-!59 = !DILocalVariable(name: "y_fptr", arg: 4, scope: !52, file: !1, line: 22, type: !37)
+!59 = !DILocalVariable(name: "b_fptr", arg: 4, scope: !52, file: !1, line: 22, type: !37)
 !60 = !DILocation(line: 22, column: 74, scope: !52)
 !61 = !DILocation(line: 23, column: 11, scope: !52)
 !62 = !DILocation(line: 23, column: 19, scope: !52)
@@ -266,13 +266,13 @@ attributes #1 = { nounwind readnone speculatable }
 !105 = !DILocation(line: 42, column: 14, scope: !96)
 !106 = !DILocation(line: 43, column: 16, scope: !107)
 !107 = distinct !DILexicalBlock(scope: !103, file: !1, line: 42, column: 24)
-!108 = !DILocation(line: 44, column: 5, scope: !107)
-!109 = !DILocation(line: 46, column: 14, scope: !64)
-!110 = !DILocation(line: 46, column: 22, scope: !64)
-!111 = !DILocation(line: 46, column: 27, scope: !64)
-!112 = !DILocation(line: 46, column: 12, scope: !64)
-!113 = !DILocation(line: 47, column: 5, scope: !64)
-!114 = !DILocation(line: 47, column: 13, scope: !64)
-!115 = !DILocation(line: 47, column: 20, scope: !64)
-!116 = !DILocation(line: 47, column: 25, scope: !64)
-!117 = !DILocation(line: 49, column: 5, scope: !64)
+!108 = !DILocation(line: 45, column: 5, scope: !107)
+!109 = !DILocation(line: 47, column: 14, scope: !64)
+!110 = !DILocation(line: 47, column: 22, scope: !64)
+!111 = !DILocation(line: 47, column: 27, scope: !64)
+!112 = !DILocation(line: 47, column: 12, scope: !64)
+!113 = !DILocation(line: 48, column: 5, scope: !64)
+!114 = !DILocation(line: 48, column: 13, scope: !64)
+!115 = !DILocation(line: 48, column: 20, scope: !64)
+!116 = !DILocation(line: 48, column: 25, scope: !64)
+!117 = !DILocation(line: 50, column: 5, scope: !64)

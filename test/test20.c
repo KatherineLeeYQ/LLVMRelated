@@ -15,12 +15,12 @@ int minus(int a, int b) {
    return a-b;
 }
 
-struct fptr * foo(int a, int b, struct fsptr * i_fptr, struct fsptr * j_fptr) {
-   return i_fptr->sptr;
+struct fptr * foo(int a, int b, struct fsptr * a_fptr, struct fsptr * b_fptr) {
+   return a_fptr->sptr;
 }
 
-struct fptr * clever(int a, int b, struct fsptr * x_fptr, struct fsptr * y_fptr ) {
-   return y_fptr->sptr;
+struct fptr * clever(int a, int b, struct fsptr * a_fptr, struct fsptr * b_fptr ) {
+   return b_fptr->sptr;
 }
 
 int moo(char x, int op1, int op2) {
@@ -41,6 +41,7 @@ int moo(char x, int op1, int op2) {
     } 
     else if (x == '-') {
        goo_ptr = clever;
+       
     }
 
     t_fptr = goo_ptr(op1, op2, &m_fptr, &n_fptr);

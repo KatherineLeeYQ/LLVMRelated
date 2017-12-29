@@ -58,7 +58,15 @@ echo "=== 27 ==="
 ./bin/assignment ./outfiles/test27.bc
 echo "=== 28 ==="
 ./bin/assignment ./outfiles/test28.bc
+echo "=== 29 ==="
+./bin/assignment ./outfiles/test29.bc
 echo "=== 30 ==="
 ./bin/assignment ./outfiles/test30.bc
 echo "=== 31 ==="
 ./bin/assignment ./outfiles/test31.bc
+echo "=== 32 ==="
+./bin/assignment ./outfiles/test32.bc
+echo "=== 33 ==="
+./bin/assignment ./outfiles/test33.bc
+echo "=== 34 ==="
+./bin/assignment ./outfiles/test34.bc

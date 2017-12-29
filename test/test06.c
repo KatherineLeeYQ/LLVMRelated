@@ -23,5 +23,3 @@ void foo(int x)
 // 11 : malloc
 // 15 : plus
 // 21 : minus
-
-// 双重指针， 降级赋值， 调用

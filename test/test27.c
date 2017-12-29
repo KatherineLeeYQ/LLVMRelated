@@ -23,7 +23,7 @@ int foo(int a, int b,struct fptr * c_fptr) {
 }
 
 int clever(int a, int b, struct fptr * c_fptr) {
-	c_fptr->p_fptr=plus;
+	  c_fptr->p_fptr=plus;
     return foo(a, b, c_fptr);
 }
 

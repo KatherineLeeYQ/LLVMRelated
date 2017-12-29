@@ -154,29 +154,7 @@ entry:
   %2 = bitcast %struct.fsptr* %1 to i8*, !dbg !124
   %3 = bitcast %struct.fsptr* %s_fptr to i8*, !dbg !124
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %2, i8* %3, i64 8, i32 8, i1 false), !dbg !124
-  %4 = load i32, i32* %x.addr, align 4, !dbg !125
-  %cmp = icmp sgt i32 %4, 1, !dbg !127
-  br i1 %cmp, label %if.then, label %if.else, !dbg !128
-
-if.then:                                          ; preds = %entry
-  %5 = load i32, i32* %x.addr, align 4, !dbg !129
-  %6 = load %struct.fsptr*, %struct.fsptr** %w_fptr, align 8, !dbg !131
-  %call3 = call i32 @foo(i32 1, i32 %5, %struct.fsptr* %6, %struct.fsptr* %r_fptr), !dbg !132
-  br label %if.end, !dbg !133
-
-if.else:                                          ; preds = %entry
-  %7 = load %struct.fsptr*, %struct.fsptr** %w_fptr, align 8, !dbg !134
-  %sptr4 = getelementptr inbounds %struct.fsptr, %struct.fsptr* %7, i32 0, i32 0, !dbg !136
-  %8 = load %struct.fptr*, %struct.fptr** %sptr4, align 8, !dbg !136
-  %p_fptr5 = getelementptr inbounds %struct.fptr, %struct.fptr* %8, i32 0, i32 0, !dbg !137
-  store i32 (i32, i32)* @plus, i32 (i32, i32)** %p_fptr5, align 8, !dbg !138
-  br label %if.end
-
-if.end:                                           ; preds = %if.else, %if.then
-  %9 = load i32, i32* %x.addr, align 4, !dbg !139
-  %10 = load %struct.fsptr*, %struct.fsptr** %w_fptr, align 8, !dbg !140
-  %call6 = call i32 @foo(i32 1, i32 %9, %struct.fsptr* %10, %struct.fsptr* %s_fptr), !dbg !141
-  ret void, !dbg !142
+  ret void, !dbg !125
 }
 
 ; Function Attrs: nounwind
@@ -317,21 +295,4 @@ attributes #4 = { nounwind }
 !122 = !DILocation(line: 41, column: 23, scope: !98)
 !123 = !DILocation(line: 43, column: 3, scope: !98)
 !124 = !DILocation(line: 43, column: 10, scope: !98)
-!125 = !DILocation(line: 44, column: 5, scope: !126)
-!126 = distinct !DILexicalBlock(scope: !98, file: !1, line: 44, column: 5)
-!127 = !DILocation(line: 44, column: 6, scope: !126)
-!128 = !DILocation(line: 44, column: 5, scope: !98)
-!129 = !DILocation(line: 46, column: 10, scope: !130)
-!130 = distinct !DILexicalBlock(scope: !126, file: !1, line: 45, column: 2)
-!131 = !DILocation(line: 46, column: 12, scope: !130)
-!132 = !DILocation(line: 46, column: 4, scope: !130)
-!133 = !DILocation(line: 47, column: 2, scope: !130)
-!134 = !DILocation(line: 49, column: 3, scope: !135)
-!135 = distinct !DILexicalBlock(scope: !126, file: !1, line: 48, column: 2)
-!136 = !DILocation(line: 49, column: 11, scope: !135)
-!137 = !DILocation(line: 49, column: 17, scope: !135)
-!138 = !DILocation(line: 49, column: 23, scope: !135)
-!139 = !DILocation(line: 51, column: 8, scope: !98)
-!140 = !DILocation(line: 51, column: 10, scope: !98)
-!141 = !DILocation(line: 51, column: 2, scope: !98)
-!142 = !DILocation(line: 52, column: 1, scope: !98)
+!125 = !DILocation(line: 54, column: 1, scope: !98)
