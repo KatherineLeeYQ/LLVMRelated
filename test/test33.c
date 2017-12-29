@@ -18,39 +18,39 @@ int plus(int a, int b) {
 int minus(int a, int b) {
    return a-b;
 }
-struct fptr * foo(int a, int b, struct wfsptr * a_fptr, struct wfsptr * b_fptr) {
+struct fptr * foo(int a, int b, struct wfsptr * i_fptr, struct wfsptr * j_fptr) {
    if(a>0 && b<0)
    {
-    struct fsptr * temp=a_fptr->wfptr;
-    a_fptr->wfptr->sptr = b_fptr->wfptr->sptr;
-    b_fptr->wfptr->sptr =temp->sptr;
-    a_fptr->wfptr->sptr->p_fptr(a,b);
-    return a_fptr->wfptr->sptr;
+    struct fsptr * temp=i_fptr->wfptr;
+    i_fptr->wfptr->sptr = j_fptr->wfptr->sptr;
+    j_fptr->wfptr->sptr =temp->sptr;
+    i_fptr->wfptr->sptr->p_fptr(a,b);
+    return i_fptr->wfptr->sptr;
    }
-   return b_fptr->wfptr->sptr;
+   return j_fptr->wfptr->sptr;
 } 
 
-struct fptr * clever(int a, int b, struct fsptr * a_fptr, struct fsptr * b_fptr ) {
+struct fptr * clever(int a, int b, struct fsptr * c_fptr, struct fsptr * v_fptr ) {
    struct wfsptr t1_fptr;
-   t1_fptr.wfptr=a_fptr;
+   t1_fptr.wfptr=c_fptr;
    struct wfsptr t2_fptr;
-   t2_fptr.wfptr=b_fptr;
+   t2_fptr.wfptr=v_fptr;
    return foo(a,b,&t1_fptr,&t2_fptr);
 }
 
-void make_simple_alias(struct wfsptr * a_fptr,struct fsptr * b_fptr)
+void make_simple_alias(struct wfsptr * q_fptr,struct fsptr * p_fptr)
 {
-  a_fptr->wfptr=b_fptr;
+  q_fptr->wfptr=p_fptr;
 }
-void make_alias(struct wfsptr* a_fptr,struct wfsptr * b_fptr)
+void make_alias(struct wfsptr* j_fptr,struct wfsptr * g_fptr)
 {
-  a_fptr->wfptr->sptr=b_fptr->wfptr->sptr;
+  j_fptr->wfptr->sptr=g_fptr->wfptr->sptr;
 }
-void swap_w(struct wfsptr * a_fptr,struct wfsptr * b_fptr)
+void swap_w(struct wfsptr * w_fptr,struct wfsptr * e_fptr)
 {
-     struct wfsptr wftemp=*a_fptr;
-     *a_fptr=*b_fptr;
-     *b_fptr=wftemp;
+     struct wfsptr wftemp=*w_fptr;
+     *w_fptr=*e_fptr;
+     *e_fptr=wftemp;
 }
 int moo(char x, int op1, int op2) {
     struct fptr a_fptr ;

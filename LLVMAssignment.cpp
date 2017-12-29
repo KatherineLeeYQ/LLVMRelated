@@ -674,6 +674,8 @@ struct FuncPtrPass : public ModulePass {
         getPtr->pointToPointSet(rSet, v);
 
         #if IS_DEBUG
+        errs() << "GetInst:\n";
+        getInst->dump();
         getPtr->output();
         #endif
     }
@@ -912,7 +914,6 @@ struct FuncPtrPass : public ModulePass {
             // phi pointer to its values
             Pointer *ptr = pointerManager.getPointerFromValue(u_ptr->get());
             phiPtr->copyPointToSet(ptr, phi);
-
             ++u_ptr;
         }
     }
