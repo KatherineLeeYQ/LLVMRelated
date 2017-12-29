@@ -41,7 +41,6 @@ void moo(int x)
 	struct fsptr* w_fptr=(struct fsptr*)malloc(sizeof(struct fsptr));
     
 	*w_fptr=s_fptr;
-	/*
 	if(x>1)
 	{
 		 foo(1,x,w_fptr,&r_fptr);
@@ -50,7 +49,6 @@ void moo(int x)
 		w_fptr->sptr->p_fptr=plus;
 	}
 	foo(1,x,w_fptr,&s_fptr);
-	*/
 }
 
 // 21 : minus, plus

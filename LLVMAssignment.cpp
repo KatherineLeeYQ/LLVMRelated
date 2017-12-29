@@ -66,7 +66,7 @@ struct EnableFunctionOptPass : public FunctionPass {
 char EnableFunctionOptPass::ID = 0;
 #endif
 
-#define IS_DEBUG true
+#define IS_DEBUG false
 
 class Pointer {
     set<Pointer *> pointToSet;
@@ -560,7 +560,7 @@ struct FuncPtrPass : public ModulePass {
     }
     bool doFinalization(Module &M) override {
         this->lineFuncs.output();
-        this->propertyManager.output();
+        //this->propertyManager.output();
 
         return true;
     }
